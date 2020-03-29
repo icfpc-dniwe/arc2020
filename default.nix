@@ -1,4 +1,4 @@
-{ buildPythonPackage }:
+{ buildPythonPackage, notebook }:
 
 buildPythonPackage {
   name = "arc2020";
@@ -6,5 +6,5 @@ buildPythonPackage {
   src = ./.;
 
   propagatedBuildInputs = [ ];
-  nativeBuildInputs = [ ];
+  nativeBuildInputs = [ notebook ];
 }

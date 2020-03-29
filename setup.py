@@ -12,6 +12,7 @@ setup(
     packages=["arc2020"],
     install_requires=[
         "numpy",
+        "numba",
         "matplotlib"
     ],
     setup_requires=[],

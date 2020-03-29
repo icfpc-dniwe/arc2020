@@ -18,3 +18,12 @@ if __name__ == '__main__':
         res = solver.utils.validate_result(task, results[task_name])
         positive_num += int(res)
     print(positive_num, '/', validation_num)
+    data_path = Path('../data/evaluation')
+    all_tasks = io.read_all_tasks(data_path)
+    results = solve.solve(all_tasks, solver.SolverType.GREEDY)
+    validation_num = len(results)
+    positive_num = 0
+    for task_name, task in all_tasks.items():
+        res = solver.utils.validate_result(task, results[task_name])
+        positive_num += int(res)
+    print(positive_num, '/', validation_num)

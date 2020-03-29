@@ -2,7 +2,7 @@ import numpy as np
 from functools import partial
 from .classify import OutputSizeType, output_size_type
 from . import stub
-from .ops import all_operations
+from .ops import atomic_operations, learnable_operations
 from .score import proximity_metric
 from .utils import apply_operations
 from ..task import Task
@@ -22,16 +22,21 @@ def solve(task: Task, max_depth: int = 2) -> List[Result]:
     cur_imgs = [cur_pair[0] for cur_pair in task.train]
     cur_gt_imgs = [cur_pair[1] for cur_pair in task.train]
     cur_metrics = np.array([proximity_metric(cur_pair[0], cur_pair[1]) for cur_pair in task.train])
-    possible_operations = all_operations
+    possible_operations = atomic_operations
+    all_learnable_operations = learnable_operations
     operations = []
-    new_metrics = np.empty((len(cur_imgs), len(possible_operations)), dtype=np.int32)
+    new_metrics = np.empty((len(cur_imgs), len(possible_operations) + len(all_learnable_operations)), dtype=np.int32)
     while len(operations) < max_depth and np.any(cur_metrics > 0):
+        cur_pairs = list(zip(cur_imgs, cur_gt_imgs))
+        learned_ops = [learn(cur_pairs) for learn in all_learnable_operations]
+        all_operations = possible_operations + learned_ops
         for img_idx, (img, gt_img) in enumerate(zip(cur_imgs, cur_gt_imgs)):
             # getting all metrics for current train pair
-            new_metrics[img_idx, :] = get_step_scores(img, gt_img, possible_operations)
+            new_metrics[img_idx, :] = get_step_scores(img, gt_img, all_operations)
         # we want the operation that minimize the distance between all training images
         operation_scores = np.sum(new_metrics, axis=0)
         best_op_idx = int(np.argmin(operation_scores))
-        operations.append(possible_operations[best_op_idx])
+        cur_imgs = [all_operations[best_op_idx](img) for img in cur_imgs]
+        operations.append(all_operations[best_op_idx])
         cur_metrics[:] = new_metrics[:, best_op_idx]
     return apply_operations(task, operations)

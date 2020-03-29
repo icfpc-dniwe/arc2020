@@ -2,12 +2,8 @@ import numpy as np
 from pathlib import Path
 import json
 
-from typing import Tuple, List, NewType, Optional
-
-
-ImgMatrix = NewType('ImgMatrix', np.ndarray)
-ImgPair = Tuple[ImgMatrix, ImgMatrix]
-TestImgPair = Tuple[ImgMatrix, Optional[ImgMatrix]]
+from .mytypes import ImgMatrix, ImgPair, TestImgPair
+from typing import List
 
 
 class Task(object):

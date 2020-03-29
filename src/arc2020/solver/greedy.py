@@ -25,7 +25,7 @@ def solve(task: Task, max_depth: int = 2) -> List[Result]:
     possible_operations = all_operations
     operations = []
     new_metrics = np.empty((len(cur_imgs), len(possible_operations)), dtype=np.int32)
-    while len(operations) < max_depth and np.all(cur_metrics > 0):
+    while len(operations) < max_depth and np.any(cur_metrics > 0):
         for img_idx, (img, gt_img) in enumerate(zip(cur_imgs, cur_gt_imgs)):
             # getting all metrics for current train pair
             new_metrics[img_idx, :] = get_step_scores(img, gt_img, possible_operations)

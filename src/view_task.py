@@ -5,7 +5,7 @@ from arc2020 import io, visualization, solve, solver
 
 if __name__ == '__main__':
     data_path = Path('../data/training')
-    task_name = '1e0a9b12.json'
+    task_name = '0e206a2e.json'
     task = io.read_task(data_path / task_name)
     # visualization.plot_task(task)
     print(io.write_result(task.test[0][0]))

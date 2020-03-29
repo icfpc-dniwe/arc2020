@@ -6,7 +6,7 @@ import typing as t
 class ImgMatrix(np.ndarray):
 
     def __new__(cls, *args):
-        self = np.array(*args).view(cls)
+        self = np.array(*args, dtype=np.uint8).view(cls)
         return self
 
 

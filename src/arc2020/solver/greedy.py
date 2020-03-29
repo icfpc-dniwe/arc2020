@@ -2,20 +2,12 @@ import numpy as np
 from functools import partial
 from .classify import OutputSizeType, output_size_type
 from . import stub
-from .ops import atomic
+from .ops import all_operations
 from .score import proximity_metric
+from .utils import apply_operations
 from ..task import Task
 from ..mytypes import Result, ImgMatrix, Operation
 from typing import List, Tuple, Iterable
-
-
-def apply_operations(task: Task, operations: Iterable[Operation]) -> List[Result]:
-    results = []
-    for cur_test_img, _ in task.test:
-        for cur_op in operations:
-            cur_test_img = cur_op(cur_test_img)
-        results.append(cur_test_img)
-    return results
 
 
 def get_step_scores(cur_img: ImgMatrix, gt_img: ImgMatrix, operations: Iterable[Operation]) -> List[int]:
@@ -30,7 +22,7 @@ def solve(task: Task, max_depth: int = 2) -> List[Result]:
     cur_imgs = [cur_pair[0] for cur_pair in task.train]
     cur_gt_imgs = [cur_pair[1] for cur_pair in task.train]
     cur_metrics = np.array([proximity_metric(cur_pair[0], cur_pair[1]) for cur_pair in task.train])
-    possible_operations = [partial(atomic.rotate, num_rotations=num_rot) for num_rot in range(1, 4)]
+    possible_operations = all_operations
     operations = []
     new_metrics = np.empty((len(cur_imgs), len(possible_operations)), dtype=np.int32)
     while len(operations) < max_depth and np.all(cur_metrics > 0):

@@ -1,2 +1,2 @@
 from .solver_types import SolverType
-from . import greedy, stub
+from . import greedy, stub, utils

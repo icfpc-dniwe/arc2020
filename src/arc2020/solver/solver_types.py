@@ -2,8 +2,8 @@ from enum import Enum
 
 
 class SolverType(Enum):
-    STUB = 'stub',
+    STUB = 'stub'
     GREEDY = 'greedy'
 
     def __str__(self) -> str:
-        return self.value[0]
+        return self.value

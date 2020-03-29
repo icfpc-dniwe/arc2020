@@ -1,5 +1,6 @@
 import sys
 import os
+import importlib
 from base64 import b64decode
 from tempfile import NamedTemporaryFile
 
@@ -17,6 +18,8 @@ if __name__ == "__main__":
     try:
         sys.path.insert(0, package_path)
         import arc2020
+        # To avoid caching in notebook
+        importlib.reload(arc2020)
         arc2020.main()
     finally:
         try:

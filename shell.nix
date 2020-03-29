@@ -1,3 +1,3 @@
 with import <nixpkgs> {};
 
-pkgs.python3.pkgs.callPackage ./. { }
+pkgs.python36.pkgs.callPackage ./. { }

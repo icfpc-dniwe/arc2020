@@ -20,12 +20,10 @@ def recolor(img: ImgMatrix, color_map: ColorMap) -> ImgMatrix:
 
 @njit
 def learn_map(source_img: ImgMatrix, target_img: ImgMatrix) -> FullColorMap:
-    # full_color_map = {idx: [0 for _ in range(10)] for idx in range(10)}
     full_color_map = np.zeros((10, 10), dtype=np.int32)
     for row_idx in range(source_img.shape[0]):
         for col_idx in range(source_img.shape[1]):
             full_color_map[source_img[row_idx, col_idx]][target_img[row_idx, col_idx]] += 1
-    # color_map = {idx: np.argmax(cur_targets) for idx, cur_targets in full_color_map.items()}
     return full_color_map
 
 
@@ -37,7 +35,6 @@ def merge_maps(img_pairs: List[ImgPair]) -> ColorMap:
         for idx in range(10):
             for inner_idx, val in enumerate(cur_pair_map[idx]):
                 full_color_map[idx][inner_idx] += val
-    # color_map = {idx: np.argmax(cur_targets) for idx, cur_targets in full_color_map.items()}
     color_map = np.empty((10,), dtype=np.uint8)
     for cur_idx in range(10):
         color_map[cur_idx] = np.argmax(full_color_map[cur_idx])

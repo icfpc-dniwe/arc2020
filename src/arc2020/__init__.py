@@ -1,9 +1,7 @@
-from pathlib import Path
-
+import os
+from . import io, solve, solver
 
 def main():
-    # print("Hello world!")
-    data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-    training_path = data_path / 'training'
-    evaluation_path = data_path / 'evaluation'
-    test_path = data_path / 'test'
+    all_tasks = io.read_all_tasks('/kaggle/input/test')
+    results = solve.solve(all_tasks, solver.SolverType.STUB)
+    io.write_submission((results, results, results), '/kaggle/working/submission.csv')

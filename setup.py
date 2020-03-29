@@ -10,7 +10,7 @@ setup(
     package_dir={"": "src"},
     zip_safe=True,
     packages=["arc2020"],
-    install_requires=[],
+    install_requires=["numpy"],
     setup_requires=[],
     entry_points={
         "console_scripts": [

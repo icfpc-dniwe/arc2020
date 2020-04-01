@@ -3,26 +3,32 @@ from numba import njit
 from .common import merge_maps, recolor
 from ...score import proximity_metric
 
-from ....mytypes import ImgPair, ImgMatrix, Operation
+from ....mytypes import ImgPair, ImgMatrix
+from ..operation import LearnableOperation
+from ...classify import OutputSizeType
 from typing import List, Sequence
 
 
-def learn_color_map(img_pairs: List[ImgPair]) -> Operation:
-    color_map = merge_maps(img_pairs)
+class ColorMap(LearnableOperation):
+    supported_outputs = [OutputSizeType.SAME]
 
-    def op(img: ImgMatrix) -> ImgMatrix:
-        return recolor(img, color_map)
+    @staticmethod
+    def _make_learnable_operation():
+        def learn(img_pairs):
+            color_map = merge_maps(img_pairs)
+            return lambda img: recolor(img, color_map)
+        return learn
 
-    return op
 
+class FixedOutput(LearnableOperation):
+    supported_outputs = [OutputSizeType.SAME]
 
-def learn_fixed_output(img_pairs: List[ImgPair]) -> Operation:
-    learned_output = img_pairs[0][1].copy()
-
-    def op(img: ImgMatrix) -> ImgMatrix:
-        return learned_output
-
-    return op
+    @staticmethod
+    def _make_learnable_operation():
+        def learn(img_pairs):
+            learned_output = img_pairs[0][1]
+            return lambda img: learned_output
+        return learn
 
 
 # @njit
@@ -57,10 +63,12 @@ def get_all_patches(img: ImgMatrix, patch_size: int) -> np.ndarray:
     return patches
 
 
-def learn_patches(img_pairs: List[ImgPair], patch_size: int = 2) -> Operation:
-    patches = []
+class Patches(LearnableOperation):
+    supported_outputs = [OutputSizeType.SAME]
 
-    def op(img: ImgMatrix) -> ImgMatrix:
-        return apply_patches(img, patches, patches)
-
-    return op
+    @staticmethod
+    def _make_learnable_operation(patch_size: int = 2):
+        def learn(img_pairs):
+            patches = []
+            return lambda img: apply_patches(img, patches, patches)
+        return learn

@@ -14,6 +14,4 @@ class ImgMatrix(np.ndarray):
 ImgPair = t.Tuple[ImgMatrix, ImgMatrix]
 TestImgPair = t.Tuple[ImgMatrix, t.Optional[ImgMatrix]]
 Result = ImgMatrix
-Operation = t.Union[t.Callable[[ImgMatrix], ImgMatrix],
-                    # partial[ImgMatrix]
-                    ]
+Operation = t.Callable[[ImgMatrix], ImgMatrix]

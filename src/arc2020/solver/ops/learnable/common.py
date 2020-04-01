@@ -1,15 +1,16 @@
 import numpy as np
 from numba import njit
-from ....mytypes import Operation, ImgMatrix, ImgPair
 from typing import List, Dict, Iterable
+from ....task import Task
+from ....mytypes import ImgMatrix, ImgPair
 
 
-ColorMap = np.ndarray
+ColorMapArray = np.ndarray
 FullColorMap = np.ndarray
 
 
 @njit
-def recolor(img: ImgMatrix, color_map: ColorMap) -> ImgMatrix:
+def recolor(img: ImgMatrix, color_map: ColorMapArray) -> ImgMatrix:
     new_img = img.copy()
     for row_idx in range(img.shape[0]):
         for col_idx in range(img.shape[1]):
@@ -27,7 +28,7 @@ def learn_map(source_img: ImgMatrix, target_img: ImgMatrix) -> FullColorMap:
 
 
 @njit
-def merge_maps(img_pairs: List[ImgPair]) -> ColorMap:
+def merge_maps(img_pairs: List[ImgPair]) -> ColorMapArray:
     full_color_map = np.zeros((10, 10), dtype=np.int32)
     for cur_pair in img_pairs:
         cur_pair_map = learn_map(cur_pair[0], cur_pair[1])

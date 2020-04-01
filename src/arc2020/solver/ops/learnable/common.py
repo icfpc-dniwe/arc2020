@@ -1,12 +1,28 @@
 import numpy as np
 from numba import njit
-from typing import List, Dict, Iterable
-from ....task import Task
+from numba.typed import List as NumbaList
 from ....mytypes import ImgMatrix, ImgPair
+from typing import List, Dict, Iterable, Any
 
 
 ColorMapArray = np.ndarray
 FullColorMap = np.ndarray
+
+
+def from_list(python_list: List[Any]) -> NumbaList:
+    # numba_list = NumbaList()
+    # for x in python_list:
+    #     numba_list.append(x)
+    # return numba_list
+    return python_list
+
+
+@njit
+def numba_pad(arr: np.ndarray, padding_size: int, padding_val: int = 11) -> np.ndarray:
+    new_shape = (arr.shape[0] + 2 * padding_size, arr.shape[1] + 2 * padding_size)
+    padded = np.zeros(new_shape, dtype=arr.dtype) + np.array([padding_val], dtype=arr.dtype)
+    padded[padding_size:-padding_size, padding_size:-padding_size] = arr
+    return padded
 
 
 @njit

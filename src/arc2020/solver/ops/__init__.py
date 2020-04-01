@@ -8,7 +8,8 @@ operations = \
     [atomic.Flip.make_operation(flip_axis=i) for i in range(0, 2)]
 
 learnable_operations = \
-    [learnable.ColorMap.make_learnable_operation()]
+    [learnable.ColorMap.make_learnable_operation()] + \
+    [partial(learnable.learn_patches, patch_size=i) for i in [3, 5, 7, 9]]
      #learnable.Patches.make_learnable_operation()]
 
 def filter_suitable(task_type, ops):

@@ -9,3 +9,7 @@ atomic_operations = \
 
 learnable_operations = \
     [learnable.learn_color_map]
+
+
+output_learnable = \
+    [learnable.learn_fixed_output, learnable.learn_patches]

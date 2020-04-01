@@ -4,7 +4,7 @@ from .common import merge_maps, recolor
 from ...score import proximity_metric
 
 from ....mytypes import ImgPair, ImgMatrix, Operation
-from typing import List
+from typing import List, Sequence
 
 
 def learn_color_map(img_pairs: List[ImgPair]) -> Operation:
@@ -26,7 +26,10 @@ def learn_fixed_output(img_pairs: List[ImgPair]) -> Operation:
 
 
 # @njit
-def apply_patches(img: ImgMatrix, source_patches: List[np.ndarray], target_patches: List[np.ndarray]) -> ImgMatrix:
+def apply_patches(img: ImgMatrix,
+                  source_patches: Sequence[np.ndarray],
+                  target_patches: Sequence[np.ndarray]
+                  ) -> ImgMatrix:
     patch_size = source_patches[0].shape[0]
     padding = patch_size // 2
     padded_img = np.pad(img, padding)
@@ -41,13 +44,17 @@ def apply_patches(img: ImgMatrix, source_patches: List[np.ndarray], target_patch
 
 
 # @njit
-def get_all_patches(img: ImgMatrix, patch_size: int) -> List[np.ndarray]:
-    patches = []
+def get_all_patches(img: ImgMatrix, patch_size: int) -> np.ndarray:
     padding = patch_size // 2
     padded_img = np.pad(img, padding)
+    num_patches = (padded_img.shape[0] - patch_size + 1) * (padded_img.shape[1] - patch_size + 1)
+    patches = np.empty((num_patches, patch_size, patch_size), dtype=img.dtype)
+    idx = 0
     for row_idx in range(padded_img.shape[0] - patch_size + 1):
         for col_idx in range(padded_img.shape[1] - patch_size + 1):
-            pass
+            patches[idx] = padded_img[row_idx:row_idx+patch_size, col_idx:col_idx+patch_size]
+            idx += 1
+    return patches
 
 
 def learn_patches(img_pairs: List[ImgPair], patch_size: int = 2) -> Operation:

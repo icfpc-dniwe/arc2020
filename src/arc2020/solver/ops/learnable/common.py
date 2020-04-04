@@ -35,19 +35,21 @@ def recolor(img: ImgMatrix, color_map: ColorMapArray) -> ImgMatrix:
 
 
 @njit
-def learn_map(source_img: ImgMatrix, target_img: ImgMatrix) -> FullColorMap:
+def learn_map(source_img: ImgMatrix, target_img: ImgMatrix, allow_trivial) -> FullColorMap:
     full_color_map = np.zeros((10, 10), dtype=np.int32)
     for row_idx in range(source_img.shape[0]):
         for col_idx in range(source_img.shape[1]):
+            if not allow_trivial and target_img[row_idx, col_idx] == 0:
+                continue
             full_color_map[source_img[row_idx, col_idx]][target_img[row_idx, col_idx]] += 1
     return full_color_map
 
 
 @njit
-def merge_maps(imgs: List[ImgMatrix], targets: List[ImgMatrix]) -> ColorMapArray:
+def merge_maps(imgs: List[ImgMatrix], targets: List[ImgMatrix], allow_trivial) -> ColorMapArray:
     full_color_map = np.zeros((10, 10), dtype=np.int32)
     for img, target in zip(imgs, targets):
-        cur_pair_map = learn_map(img, target)
+        cur_pair_map = learn_map(img, target, allow_trivial)
         for idx in range(10):
             for inner_idx, val in enumerate(cur_pair_map[idx]):
                 full_color_map[idx][inner_idx] += val

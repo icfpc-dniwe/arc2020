@@ -39,6 +39,6 @@ def plot_task(task: Task) -> NoReturn:
     fig, axs = plt.subplots(2, num_test, figsize=(3 * num_test, 3 * 2), squeeze=False)
     for i in range(num_test):
         plot_one(axs[0, i], task.test[i][0], True, False)
-        plot_one(axs[1, i], task.test[i][0], False, False)
+        plot_one(axs[1, i], task.test[i][1], False, False)
     plt.tight_layout()
     plt.show()

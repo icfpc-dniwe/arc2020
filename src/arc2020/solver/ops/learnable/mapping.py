@@ -13,9 +13,9 @@ class ColorMap(LearnableOperation):
     supported_outputs = [OutputSizeType.SAME]
 
     @staticmethod
-    def _make_learnable_operation():
+    def _make_learnable_operation(allow_trivial: bool = False):
         def learn(imgs, targets):
-            color_map = merge_maps(imgs, targets)
+            color_map = merge_maps(imgs, targets, allow_trivial)
             return lambda img: recolor(img, color_map)
         return learn
 

@@ -1,14 +1,16 @@
 from . import solver
-from .solver import SolverType
+from .solver.solver import Solver
+from .solver.utils import apply_operations
 from .task import Task
 
 from .mytypes import Result
-from typing import Dict, List
+from typing import Dict, List, Type
 
 
-def solve(all_tasks: Dict[str, Task], solver_type: SolverType, **solver_kwargs) -> Dict[str, List[Result]]:
-    solver_fn = getattr(solver, str(solver_type)).solve
+def solve(all_tasks: Dict[str, Task], solver_type: Type[Solver], **solver_kwargs) -> Dict[str, List[Result]]:
+    solver_fn = solver_type(**solver_kwargs)
     results = dict()
     for task_name, cur_task in all_tasks.items():
-        results[task_name] = solver_fn(cur_task, **solver_kwargs)
+        operations = solver_fn(cur_task)
+        results[task_name] = apply_operations(cur_task, operations)
     return results

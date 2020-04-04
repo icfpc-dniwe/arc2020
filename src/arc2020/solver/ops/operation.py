@@ -26,7 +26,7 @@ class LearnableOperation:
     supported_outputs = [e for e in OutputSizeType]
 
     @classmethod
-    def make_learnable_operation(cls, *args, **kwargs) -> Callable[[List[ImgPair]], Operation]:
+    def make_learnable_operation(cls, *args, **kwargs) -> Callable[[List[ImgMatrix], List[ImgMatrix]], Operation]:
         f = cls._make_learnable_operation(*args, **kwargs)
         f.supported_outputs = cls.supported_outputs
         return f

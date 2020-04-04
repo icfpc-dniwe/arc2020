@@ -44,10 +44,10 @@ def learn_map(source_img: ImgMatrix, target_img: ImgMatrix) -> FullColorMap:
 
 
 @njit
-def merge_maps(img_pairs: List[ImgPair]) -> ColorMapArray:
+def merge_maps(imgs: List[ImgMatrix], targets: List[ImgMatrix]) -> ColorMapArray:
     full_color_map = np.zeros((10, 10), dtype=np.int32)
-    for cur_pair in img_pairs:
-        cur_pair_map = learn_map(cur_pair[0], cur_pair[1])
+    for img, target in zip(imgs, targets):
+        cur_pair_map = learn_map(img, target)
         for idx in range(10):
             for inner_idx, val in enumerate(cur_pair_map[idx]):
                 full_color_map[idx][inner_idx] += val

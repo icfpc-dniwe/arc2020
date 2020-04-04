@@ -14,8 +14,8 @@ class ColorMap(LearnableOperation):
 
     @staticmethod
     def _make_learnable_operation():
-        def learn(img_pairs):
-            color_map = merge_maps(img_pairs)
+        def learn(imgs, targets):
+            color_map = merge_maps(imgs, targets)
             return lambda img: recolor(img, color_map)
         return learn
 
@@ -25,8 +25,8 @@ class FixedOutput(LearnableOperation):
 
     @staticmethod
     def _make_learnable_operation():
-        def learn(img_pairs):
-            learned_output = img_pairs[0][1]
+        def learn(imgs, targets):
+            learned_output = targets[0]
             return lambda img: learned_output
         return learn
 
@@ -85,9 +85,9 @@ class Patches(LearnableOperation):
 
     @staticmethod
     def _make_learnable_operation(patch_size: int = 2):
-        def learn(img_pairs: List[ImgPair]):
-            input_patches = np.concatenate([get_all_patches(img, patch_size) for img, _ in img_pairs], axis=0)
-            output_patches = np.concatenate([get_all_patches(img, patch_size) for _, img in img_pairs], axis=0)
+        def learn(imgs: List[ImgMatrix], targets: List[ImgMatrix]):
+            input_patches = np.concatenate([get_all_patches(img, patch_size) for img in imgs], axis=0)
+            output_patches = np.concatenate([get_all_patches(img, patch_size) for img in targets], axis=0)
             source_patches = []
             target_patches = []
             ambiguous_patches = []

@@ -1,5 +1,3 @@
-from functools import partial
-from ..classify import OutputSizeType
 from . import atomic, learnable
 
 operations = \
@@ -8,17 +6,5 @@ operations = \
     [atomic.Flip.make_operation(flip_axis=i) for i in range(0, 2)]
 
 learnable_operations = \
-    [learnable.ColorMap.make_learnable_operation()] + \
-    [learnable.Patches.make_learnable_operation(patch_size=i) for i in [3, 5, 7, 9]]
-
-
-def filter_suitable(task_type, ops):
-    return list(filter(lambda op: task_type in op.supported_outputs, ops))
-
-
-def suitable_operations(task_type):
-    return filter_suitable(task_type, operations)
-
-
-def suitable_learnable_operations(task_type):
-    return filter_suitable(task_type, learnable_operations)
+    [learnable.ColorMap.make_learnable_operation()] # + \
+    # [learnable.Patches.make_learnable_operation(patch_size=i) for i in [3, 5, 7, 9]]

@@ -1,7 +1,9 @@
 from ..task import Task
 from ..mytypes import Result
 from typing import List
+from .solver import Solver
 
 
-def solve(task: Task) -> List[Result]:
-    return [elem[0] for elem in task.test]
+class Stub(Solver):
+    def solve(self):
+        return []

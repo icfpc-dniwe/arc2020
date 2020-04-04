@@ -1,3 +1,4 @@
+from itertools import chain
 from typing import Callable, List
 from ...mytypes import ImgMatrix, ImgPair, Operation
 from ..classify import OutputSizeType
@@ -8,13 +9,21 @@ class InvalidOperationError(Exception):
         super().__init__("Invalid operation")
 
 
+def operation_name(cls, args, kwargs):
+    str_args = map(repr, args)
+    str_kwargs = map(lambda kv: f"{kv[0]}={repr(kv[1])}", kwargs.items())
+    all_str = ", ".join(chain(str_args, str_kwargs))
+    return f"{cls.__name__}({all_str})"
+
 class Operation:
     supported_outputs = [e for e in OutputSizeType]
 
     @classmethod
     def make_operation(cls, *args, **kwargs) -> Operation:
+        name = operation_name(cls, args, kwargs)
         f = cls._make_operation(*args, **kwargs)
         f.supported_outputs = cls.supported_outputs
+        f.name = name
         return f
 
     @staticmethod
@@ -27,9 +36,19 @@ class LearnableOperation:
 
     @classmethod
     def make_learnable_operation(cls, *args, **kwargs) -> Callable[[List[ImgMatrix], List[ImgMatrix]], Operation]:
-        f = cls._make_learnable_operation(*args, **kwargs)
-        f.supported_outputs = cls.supported_outputs
-        return f
+        name = operation_name(cls, args, kwargs)
+        learnt_name = operation_name(cls, args, kwargs) + "()"
+        supported_outputs = cls.supported_outputs
+
+        learn_f = cls._make_learnable_operation(*args, **kwargs)
+        def learn(*args, **kwargs):
+            f = learn_f(*args, **kwargs)
+            f.supported_outputs = supported_outputs
+            f.name = learnt_name
+            return f
+        learn.supported_outputs = supported_outputs
+        learn.name = name
+        return learn
 
     @staticmethod
     def _make_learnable_operation():

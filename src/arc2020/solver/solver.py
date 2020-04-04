@@ -19,3 +19,6 @@ class Solver:
         if len(self.possible_operations) + len(self.learnable_operations) == 0:
             return []
         return self.solve()
+
+    def solve(self):
+        raise NotImplemented

@@ -6,7 +6,7 @@ from arc2020 import io, visualization, solve, solver
 
 
 if __name__ == '__main__':
-    my_solver = solver.greedy.GreedySolver
+    my_solver = solver.dfs.DFSSolver
     data_path = Path('../data/training')
     # task_name = '0e206a2e.json'
     # for cur_task in data_path.iterdir():

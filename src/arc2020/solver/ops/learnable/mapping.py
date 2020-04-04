@@ -10,7 +10,7 @@ from typing import List, Sequence
 
 
 class ColorMap(LearnableOperation):
-    supported_outputs = [OutputSizeType.SAME]
+    supported_outputs = [OutputSizeType.SQUARE_SAME]
 
     @staticmethod
     def _make_learnable_operation(allow_trivial: bool = False):
@@ -21,7 +21,7 @@ class ColorMap(LearnableOperation):
 
 
 class FixedOutput(LearnableOperation):
-    supported_outputs = [OutputSizeType.SAME]
+    supported_outputs = [OutputSizeType.SQUARE_SAME]
 
     @staticmethod
     def _make_learnable_operation():
@@ -81,7 +81,7 @@ def get_all_patches(img: ImgMatrix, patch_size: int) -> np.ndarray:
 
 
 class Patches(LearnableOperation):
-    supported_outputs = [OutputSizeType.SAME]
+    supported_outputs = [OutputSizeType.SQUARE_SAME]
 
     @staticmethod
     def _make_learnable_operation(patch_size: int = 2):

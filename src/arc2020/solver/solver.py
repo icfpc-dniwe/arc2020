@@ -4,6 +4,9 @@ from .ops import operations, learnable_operations
 from .classify import output_size_type
 from ..task import Task
 
+from ..mytypes import Operation
+from typing import List
+
 
 def filter_suitable(task_type, ops):
     return list(filter(lambda op: task_type in op.supported_outputs, ops))
@@ -20,5 +23,5 @@ class Solver:
             return []
         return self.solve()
 
-    def solve(self):
+    def solve(self) -> List[Operation]:
         raise NotImplemented

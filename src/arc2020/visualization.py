@@ -3,10 +3,12 @@ from matplotlib import colors
 import numpy as np
 
 from .task import Task
-from typing import NoReturn
+from typing import Optional
 
 
-def plot_one(ax: plt.Axes, task_matrix: np.ndarray, is_input: bool, is_train: bool) -> plt.Axes:
+def plot_one(ax: Optional[plt.Axes], task_matrix: np.ndarray, is_input: bool, is_train: bool) -> plt.Axes:
+    if ax is None:
+        _, ax = plt.subplots(1, 1, figsize=(3, 3))
     cmap = colors.ListedColormap(
         ['#000000', '#0074D9', '#FF4136', '#2ECC40', '#FFDC00',
          '#AAAAAA', '#F012BE', '#FF851B', '#7FDBFF', '#870C25'])
@@ -23,13 +25,13 @@ def plot_one(ax: plt.Axes, task_matrix: np.ndarray, is_input: bool, is_train: bo
     return ax
 
 
-def plot_task(task: Task) -> NoReturn:
+def plot_task(task: Task) -> None:
     """
     Plots the first train and test pairs of a specified task,
     using same color scheme as the ARC app
     """
     num_train = len(task.train)
-    fig, axs = plt.subplots(2, num_train, figsize=(3 * num_train, 3 *2))
+    fig, axs = plt.subplots(2, num_train, figsize=(3 * num_train, 3 * 2), squeeze=False)
     for i in range(num_train):
         plot_one(axs[0, i], task.train[i][0], True, True)
         plot_one(axs[1, i], task.train[i][1], False, True)

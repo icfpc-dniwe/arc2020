@@ -18,7 +18,7 @@ def from_list(python_list: List[Any]) -> NumbaList:
 
 
 @njit
-def numba_pad(arr: np.ndarray, padding_size: int, padding_val: int = 11) -> np.ndarray:
+def numba_pad(arr: np.ndarray, padding_size: int, padding_val: int = 0) -> np.ndarray:
     new_shape = (arr.shape[0] + 2 * padding_size, arr.shape[1] + 2 * padding_size)
     padded = np.zeros(new_shape, dtype=arr.dtype) + np.array([padding_val], dtype=arr.dtype)
     padded[padding_size:-padding_size, padding_size:-padding_size] = arr

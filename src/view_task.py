@@ -8,30 +8,30 @@ from arc2020 import io, visualization, solve, solver
 if __name__ == '__main__':
     my_solver = solver.dfs.DFSSolver
     data_path = Path('../data/training')
-    # tasks = [
-    #     '54d9e175.json',
-    #     'c0f76784.json',
-    #     '39e1d7f9.json',
-    #     'e509e548.json',
-    #     '05269061.json',
-    #     '0ca9ddb6.json'
-    # ]
-    # cur_solver = my_solver(max_depth=1)
-    # for cur_task in tasks:
-    #     print(cur_task)
-    #     task = io.read_task(data_path / cur_task)
-    #     visualization.plot_task(task)
-    #     ops = cur_solver(task)
-    #     print(ops)
-    #     result_matricies = solver.utils.apply_operations(task, ops)
-    #     num_test = len(result_matricies)
-    #     fig, axs = plt.subplots(2, num_test, figsize=(3 * num_test, 3 * 2), squeeze=False)
-    #     for i in range(num_test):
-    #         visualization.plot_one(axs[0, i], task.test[i][0], True, False)
-    #         visualization.plot_one(axs[1, i], result_matricies[i], False, False)
-    #     plt.tight_layout()
-    #     plt.show()
-    # quit()
+    tasks = [
+        # '54d9e175.json',
+        # 'c0f76784.json',
+        # '39e1d7f9.json',
+        # 'e509e548.json',
+        # '05269061.json',
+        '0ca9ddb6.json'
+    ]
+    cur_solver = my_solver(max_depth=1)
+    for cur_task in tasks:
+        print(cur_task)
+        task = io.read_task(data_path / cur_task)
+        visualization.plot_task(task)
+        ops = cur_solver(task)
+        print(ops)
+        result_matricies = solver.utils.apply_operations(task, ops)
+        num_test = len(result_matricies)
+        fig, axs = plt.subplots(2, num_test, figsize=(3 * num_test, 3 * 2), squeeze=False)
+        for i in range(num_test):
+            visualization.plot_one(axs[0, i], task.test[i][0], True, False)
+            visualization.plot_one(axs[1, i], result_matricies[i], False, False)
+        plt.tight_layout()
+        plt.show()
+    quit()
     # task_name = '0e206a2e.json'
     # for cur_task in data_path.iterdir():
     #     print(cur_task.name)

@@ -1,62 +1,40 @@
 import numpy as np
 from numba import njit
 from .common import merge_maps, recolor, from_list, numba_pad
-from ...score import proximity_metric
 from ..patch import Patch, create_patch
 from ....mytypes import ImgPair, ImgMatrix
-from ..operation import LearnableOperation
-from ...classify import OutputSizeType
 from typing import List, Sequence, Tuple
 
 
-# @njit
+@njit
 def apply_patches(img: ImgMatrix,
-                  # source_patches: Sequence[np.ndarray],
-                  # target_patches: Sequence[np.ndarray],
-                  # ambiguous_patches: Sequence[np.ndarray],
                   patches: Sequence[Patch],
                   patch_size: int,
                   ) -> ImgMatrix:
     if len(patches) < 2:
         return img
-    # source_patches = source_patches[1:]
-    # target_patches = target_patches[1:]
-    # ambiguous_patches = ambiguous_patches[1:]
     patches = patches[1:]
     padding = patch_size // 2
-    # padded_img = np.pad(img, padding, 11)
     padded_img = numba_pad(img, padding, 11)
-    new_img = padded_img.copy()  # np.empty_like(padded_img, dtype=img.dtype)
+    new_img = padded_img.copy()
     for row_idx in range(padded_img.shape[0] - patch_size + 1):
         for col_idx in range(padded_img.shape[1] - patch_size + 1):
             input_patch = padded_img[row_idx:row_idx+patch_size, col_idx:col_idx+patch_size]
-            best_patch = None
-            for cur_patch in patches:
+            best_idx = -1
+            for cur_idx, cur_patch in enumerate(patches):
                 if np.all(np.logical_or(input_patch == cur_patch[0], 1 - cur_patch[2])):
-                    best_patch = cur_patch
+                    best_idx = cur_idx
                     break
-            if best_patch is not None:
+            if best_idx >= 0:
+                best_patch = patches[best_idx]
                 new_patch = best_patch[1] * best_patch[2] + input_patch * (1 - best_patch[2])
                 new_img[row_idx:row_idx + patch_size, col_idx:col_idx + patch_size] = new_patch
-            # if len(ambiguous_patches) > 0:
-            #     ambiguity_metrics = [proximity_metric(input_patch, cur_patch) for cur_patch in ambiguous_patches]
-            #     amb_metric = np.min(np.array(ambiguity_metrics))
-            # else:
-            #     amb_metric = np.inf
-            # metrics = [proximity_metric(input_patch, cur_patch) for cur_patch in source_patches]
-            # best_match = int(np.argmin(np.array(metrics)))
-            # match_metric = metrics[best_match]
-            # if match_metric == 0:
-            #     new_img[row_idx:row_idx+patch_size, col_idx:col_idx+patch_size] = target_patches[best_match]
-            # else:
-            #     new_img[row_idx:row_idx+patch_size, col_idx:col_idx+patch_size] = input_patch
     return new_img[padding:-padding, padding:-padding]
 
 
 @njit
 def get_all_patches(img: ImgMatrix, patch_size: int) -> np.ndarray:
     padding = patch_size // 2
-    # padded_img = np.pad(img, padding, 11)
     padded_img = numba_pad(img, padding, 11)
     num_patches = (padded_img.shape[0] - patch_size + 1) * (padded_img.shape[1] - patch_size + 1)
     patches = np.empty((num_patches, patch_size, patch_size), dtype=img.dtype)
@@ -87,21 +65,9 @@ def match_patches(input_patches: Sequence[np.ndarray],
     patch_pairs = [create_patch(cur_patch, output_patches[cur_idx])
                    for cur_patch, cur_idx in zip(unique_patches, unique_indices)]
     for cur_input, cur_output in zip(input_patches, output_patches):
-        # unique = True
-        # pair_idx = 0
-        # for idx, cur_pair in enumerate(patch_pairs):
-        #     if np.all(cur_input == cur_pair[0]) and np.any(cur_output != cur_pair[1]):
-        #         unique = False
-        #         pair_idx = idx
-        #         break
         pair_idx = is_adequate_patch(patch_pairs, create_patch(cur_input, cur_output))
         if pair_idx >= 0:
             del patch_pairs[pair_idx]
-        # if unique:
-        #     source_patches.append(cur_input)
-        #     target_patches.append(cur_output)
-        # else:
-        #     ambiguous_patches.append(cur_input)
     for cur_patch in patch_pairs:
         if np.any(cur_patch[0] != cur_patch[1]):
             patches.append(cur_patch)

@@ -1,7 +1,7 @@
 import numpy as np
 from .common import merge_maps, recolor, from_list
 from .patches import apply_patches, get_all_patches, match_patches, common_patches
-from ..patch import Patch, create_patch
+from ..patch import create_patch
 from ....mytypes import ImgPair, ImgMatrix
 from ..operation import LearnableOperation
 from ...classify import OutputSizeType
@@ -36,9 +36,6 @@ class Patches(LearnableOperation):
     @staticmethod
     def _make_learnable_operation(patch_size: int = 2):
         def learn(imgs: List[ImgMatrix], targets: List[ImgMatrix]):
-            # input_patches = np.concatenate([get_all_patches(img, patch_size) for img in imgs], axis=0)
-            # output_patches = np.concatenate([get_all_patches(img, patch_size) for img in targets], axis=0)
-            # source_patches, target_patches, ambiguous_patches = match_patches(input_patches, output_patches)
             patches = []
             for idx, (cur_input_img, cur_output_img) in enumerate(zip(imgs, targets)):
                 input_patches = get_all_patches(cur_input_img, patch_size)

@@ -47,7 +47,7 @@ def apply_patches(img: ImgMatrix,
 def get_all_patches(img: ImgMatrix, patch_size: int) -> np.ndarray:
     padding = patch_size // 2
     # padded_img = np.pad(img, padding, 11)
-    padded_img = numba_pad(img, padding)
+    padded_img = numba_pad(img, padding, 11)
     num_patches = (padded_img.shape[0] - patch_size + 1) * (padded_img.shape[1] - patch_size + 1)
     patches = np.empty((num_patches, patch_size, patch_size), dtype=img.dtype)
     idx = 0
@@ -56,6 +56,16 @@ def get_all_patches(img: ImgMatrix, patch_size: int) -> np.ndarray:
             patches[idx] = padded_img[row_idx:row_idx+patch_size, col_idx:col_idx+patch_size]
             idx += 1
     return patches
+
+
+@njit
+def is_adequate_patch(all_patches: Sequence[Tuple[np.ndarray, np.ndarray]],
+                      test_patch: Tuple[np.ndarray, np.ndarray]
+                      ) -> int:
+    for idx, (cur_input, cur_target) in zip(*all_patches):
+        if np.all(test_patch[0] == cur_input) and np.any(test_patch[1] != cur_target):
+            return idx
+    return -1
 
 
 # @njit
@@ -69,14 +79,15 @@ def match_patches(input_patches: Sequence[np.ndarray],
     patch_pairs = [(cur_patch, output_patches[cur_idx])
                    for cur_patch, cur_idx in zip(unique_patches, unique_indices)]
     for cur_input, cur_output in zip(input_patches, output_patches):
-        unique = True
-        pair_idx = 0
-        for idx, cur_pair in enumerate(patch_pairs):
-            if np.all(cur_input == cur_pair[0]) and np.any(cur_output != cur_pair[1]):
-                unique = False
-                pair_idx = idx
-                break
-        if not unique:
+        # unique = True
+        # pair_idx = 0
+        # for idx, cur_pair in enumerate(patch_pairs):
+        #     if np.all(cur_input == cur_pair[0]) and np.any(cur_output != cur_pair[1]):
+        #         unique = False
+        #         pair_idx = idx
+        #         break
+        pair_idx = is_adequate_patch(patch_pairs, (cur_input, cur_output))
+        if pair_idx >= 0:
             ambiguous_patches.append(patch_pairs[pair_idx][0])
             del patch_pairs[pair_idx]
         # if unique:

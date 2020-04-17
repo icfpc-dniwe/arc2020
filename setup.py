@@ -13,7 +13,8 @@ setup(
     install_requires=[
         "numpy",
         "numba",
-        "matplotlib"
+        "matplotlib",
+        "tqdm"
     ],
     setup_requires=[],
     entry_points={

@@ -10,11 +10,11 @@ if __name__ == '__main__':
     data_path = Path('../data/training')
     tasks = [
         # '54d9e175.json',
-        # 'c0f76784.json',
+        'c0f76784.json',
         # '39e1d7f9.json',
         # 'e509e548.json',
         # '05269061.json',
-        '0ca9ddb6.json'
+        # '0ca9ddb6.json'
     ]
     cur_solver = my_solver(max_depth=1)
     for cur_task in tasks:

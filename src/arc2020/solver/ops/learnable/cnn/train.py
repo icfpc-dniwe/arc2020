@@ -120,9 +120,9 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
         epoch_loss = running_loss / len(data.dataset)
         epoch_metric = running_metric / len(data.dataset)
         print(f'Epoch[{epoch_idx:03d}] Loss: {epoch_loss:.3f} | ACC: {epoch_metric:.5f}')
-        # if epoch_metric > 1.0 - 1e-7:
-        #     print('1.0 accuracy, early stop')
-        #     break
+        if epoch_metric > 1.0 - 1e-7:
+            print('1.0 accuracy, early stop')
+            break
     predictor.eval()
     weight_predictor.eval()
     return (predictor, weight_predictor), float(epoch_metric)

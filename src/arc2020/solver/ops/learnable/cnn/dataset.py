@@ -121,7 +121,7 @@ class TaskData(data.Dataset):
         self.data = [(add_palette(img), add_palette(target)) for img, target in zip(imgs, targets)]
         # self.data = list(zip(imgs, targets))
         if sample:
-            self.permutations = RandomPerm(all_permutations, 3 * 10**4)
+            self.permutations = RandomPerm(all_permutations, 3 * 10**5)
             # self.permutations = RandomPerm(all_permutations, 3000)
         else:
             self.permutations = all_permutations
@@ -132,7 +132,8 @@ class TaskData(data.Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # cur_perm = self.permutations[idx]
         cur_perm = list(range(10))
-        num_sample = random.randint(2, len(self.data))
+        # num_sample = random.randint(2, len(self.data))
+        num_sample = 2
         sample = random.sample(self.data, num_sample)
         sample = [aug(img, target) for img, target in sample]
         sample = [prep_data(img, target, cur_perm) for img, target in sample]

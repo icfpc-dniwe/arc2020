@@ -15,7 +15,8 @@ setup(
         "numba",
         "matplotlib",
         "tqdm",
-        "torch"
+        "torch",
+        "pathos"
     ],
     setup_requires=[],
     entry_points={

@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from collections import OrderedDict
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Tuple
 
 
 class Flatten(nn.Module):
@@ -129,26 +129,28 @@ class SmallPredictor(nn.Module):
         super(SmallPredictor, self).__init__()
         self.params_shapes = OrderedDict(
             stage1=OrderedDict(
-                conv1_1=(12, 10, 3, 3),
+                conv1_1=(12, 12, 3, 3),
                 conv1_2=(12, 12, 3, 3),
-                conv1_3=(14, 12, 3, 3),
+                conv1_3=(12, 12, 3, 3),
             ),
             stage2=OrderedDict(
                 conv2_1=(24, 24, 3, 3),
                 conv2_2=(24, 24, 3, 3),
-                conv2_3=(14, 24, 3, 3),
+                conv2_3=(12, 24, 3, 3),
             ),
             stage3=OrderedDict(
                 conv3_1=(24, 24, 3, 3),
                 conv3_2=(24, 24, 3, 3),
-                conv3_3=(14, 24, 3, 3),
+                conv3_3=(12, 24, 3, 3),
             ),
             stage4=OrderedDict(
-                conv_pred=(10, 24, 1, 1)
+                conv_pred=(10, 24, 1, 1),
+                size_pred1=(12, 24, 1, 1),
+                size_pred2=(2, 12, 1, 1)
             )
         )
         self.stage_bns = {key: {ins_key: nn.BatchNorm2d(ins_val[0]) for ins_key, ins_val in val.items()}
-                          for key, val in self.params_shapes.items()}
+                          for key, val in self.params_shapes.items() if key != 'stage4'}
         for key, ins_dict in self.stage_bns.items():
             for ins_key, ins_module in ins_dict.items():
                 self.add_module(f'{key}_{ins_key}', ins_module)
@@ -166,22 +168,25 @@ class SmallPredictor(nn.Module):
                 cur_bg += cur_size
         return res_weights
 
-    def forward(self, x: torch.Tensor, weights: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weights: Dict[str, torch.Tensor]
+                ) -> Tuple[torch.Tensor, torch.Tensor]:
         cur_stage = x
         weights = self.prepare_weights(weights)
         for stage_key, stage_vals in self.params_shapes.items():
+            if stage_key == 'stage4':
+                break
             for conv_key in stage_vals.keys():
                 padding = self.params_shapes[stage_key][conv_key][2] // 2
                 conv = F.conv2d(cur_stage, weights[stage_key][conv_key], padding=padding)
-                if conv_key == 'conv_pred':
-                    cur_stage = conv
-                    continue
                 bn = self.stage_bns[stage_key][conv_key](conv)
                 cur_stage = F.relu(bn, inplace=True)
-            if stage_key == 'stage4':
-                continue
             cur_stage = torch.cat([cur_stage, x], dim=1)
-        return cur_stage
+        cur_size = F.conv2d(cur_stage, weights['stage4']['size_pred1'], padding=0)
+        cur_size = F.adaptive_avg_pool2d(cur_size, (1, 1))
+        cur_size = F.conv2d(cur_size, weights['stage4']['size_pred2'], padding=0)
+        cur_size = cur_size.view(-1, 2)
+        cur_stage = F.conv2d(cur_stage, weights['stage4']['conv_pred'], padding=0)
+        return cur_stage, cur_size
 
 
 class SmallWeightPredictor(nn.Module):
@@ -227,7 +232,7 @@ class SmallWeightPredictor(nn.Module):
     @staticmethod
     def head_conv() -> nn.Module:
         return nn.Sequential(
-            conv_bn(10, 12),
+            conv_bn(12, 12),
             conv_bn(12, 12),
             conv_bn(12, 12)
         )
@@ -253,3 +258,60 @@ class SmallWeightPredictor(nn.Module):
         stage4 = stage3 + self.stage4(stage3)
         preds['stage4'] = self.w4_pred(stage4)
         return preds
+
+
+class AutoEncoder(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.features = nn.Sequential(
+            conv_bn(12, 12),
+            conv_bn(12, 12),
+            conv_bn(12, 12),
+            conv_bn(12, 24, 2),
+            conv_bn(24, 24),
+            conv_bn(24, 24),
+            conv_bn(24, 24),
+            conv_bn(24, 24, 2),
+            conv_bn(24, 24),
+            conv_bn(24, 24),
+            conv_bn(24, 24),
+            conv_bn(24, 48, 2),
+            conv_bn(48, 48),
+            conv_bn(48, 48),
+            conv_bn(48, 24),
+            conv_bn(24, 48, 2),
+            conv_bn(48, 48),
+            conv_bn(48, 48)
+        )
+        self.upscale = nn.Sequential(
+            conv_bn(48, 64),
+            DecodeBlock(64, 128),
+            conv_bn(128, 128),
+            conv_bn(128, 128),
+            conv_bn(128, 128),
+            DecodeBlock(128, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            DecodeBlock(64, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            DecodeBlock(64, 32),
+            conv_bn(32, 32),
+            conv_bn(32, 32),
+            conv_bn(32, 32),
+        )
+        self.mat_pred = nn.Conv2d(32, 10, 3, 1, 1)
+        self.size_pred = nn.Sequential(
+            nn.Conv2d(32, 32, 3, 1, 1),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Conv2d(32, 2, 1, 1, 0),
+            Flatten()
+        )
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        features = self.features(x)
+        upscale = self.upscale(features)
+        return self.mat_pred(upscale), torch.sigmoid(self.size_pred(upscale))

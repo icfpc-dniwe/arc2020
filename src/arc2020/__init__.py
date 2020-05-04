@@ -1,10 +1,13 @@
 import os
 from pathlib import Path
+import torch.backends.cudnn as cudnn
 from . import io, solve, solver
 
 def main():
+    cudnn.benchmark = True
     all_tasks = io.read_all_tasks(Path('/kaggle/input/abstraction-and-reasoning-challenge/test'))
-    results2 = solve.solve(all_tasks, solver.SolverType.GREEDY, max_depth=2)
-    results3 = solve.solve(all_tasks, solver.SolverType.GREEDY, max_depth=3)
-    results4 = solve.solve(all_tasks, solver.SolverType.GREEDY, max_depth=4)
-    io.write_submission((results2, results3, results4), 'submission.csv')
+    # all_tasks = io.read_all_tasks(Path.home() / 'python/arc2020/data/test')
+    results1 = solve.solve(all_tasks, solver.greedy.GreedySolver, max_depth=3)
+    results2 = solve.solve(all_tasks, solver.dfs.DFSSolver, max_depth=3)
+    results3 = solve.solve(all_tasks, solver.dfs.DFSSolver, max_depth=5)
+    io.write_submission((results1, results2, results3), 'submission.csv')

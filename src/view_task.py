@@ -7,7 +7,7 @@ from arc2020 import io, visualization, solve, solver, main, pretrain
 
 if __name__ == '__main__':
     # main()
-    # my_solver = solver.cnn.AutoEncoderTrain
+    # my_solver = solver.cnn.CNNSolver
     data_path = Path('../data/training')
     # tasks = [
     #     # '54d9e175.json',
@@ -17,6 +17,10 @@ if __name__ == '__main__':
     #     # '05269061.json',
     #     # '0ca9ddb6.json'
     # ]
+    # # tasks = [
+    # #     # '0e671a1a.json',
+    # #     '1da012fc.json'
+    # # ]
     # cur_solver = my_solver()
     # for cur_task in tasks:
     #     print(cur_task)
@@ -40,9 +44,11 @@ if __name__ == '__main__':
     #     visualization.plot_task(task)
     # print(io.write_result(task.test[0][0]))
     all_tasks = io.read_all_tasks(data_path)
+    first_keys = list(all_tasks.keys())[:10]
+    all_tasks = {key: all_tasks[key] for key in first_keys}
     # results = solve.solve(all_tasks, my_solver)
     results, ops = pretrain.pretrain(all_tasks, None)
-    io.write_submission((results, results, results), '../data/debug_submission.csv')
+    # io.write_submission((results, results, results), '../data/debug_submission.csv')
     validation_num = len(results)
     positive_num = 0
     for task_name, task in all_tasks.items():

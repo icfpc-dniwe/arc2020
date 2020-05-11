@@ -26,9 +26,9 @@ def get_act(activation: str):
     return act
 
 
-def conv_bn(inp, oup, stride = 1, act=nn.ReLU):
+def conv_bn(inp, oup, stride = 1, kernel = 3, act=nn.ReLU):
     return nn.Sequential(
-        nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
+        nn.Conv2d(inp, oup, kernel, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
         act(inplace=True)
     )
@@ -189,6 +189,33 @@ class SmallPredictor(nn.Module):
         return cur_stage, cur_size
 
 
+class ExstraSmallPredictor(SmallPredictor):
+
+    def __init__(self):
+        super().__init__()
+        self.params_shapes = OrderedDict(
+            stage1=OrderedDict(
+                conv1_1=(8, 12, 3, 3),
+            ),
+            stage2=OrderedDict(
+                conv2_1=(8, 20, 3, 3),
+            ),
+            stage3=OrderedDict(
+                conv3_1=(8, 20, 3, 3),
+            ),
+            stage4=OrderedDict(
+                conv_pred=(10, 20, 1, 1),
+                size_pred1=(2, 20, 1, 1),
+                size_pred2=(2, 2, 1, 1)
+            )
+        )
+        self.stage_bns = {key: {ins_key: nn.BatchNorm2d(ins_val[0]) for ins_key, ins_val in val.items()}
+                          for key, val in self.params_shapes.items() if key != 'stage4'}
+        for key, ins_dict in self.stage_bns.items():
+            for ins_key, ins_module in ins_dict.items():
+                self.add_module(f'{key}_{ins_key}', ins_module)
+
+
 class SmallWeightPredictor(nn.Module):
 
     def __init__(self, params_shapes: Dict[str, Dict[str, Iterable[int]]]):
@@ -266,40 +293,40 @@ class AutoEncoder(nn.Module):
         super().__init__()
         self.features = nn.Sequential(
             conv_bn(12, 12),
-            conv_bn(12, 12),
-            conv_bn(12, 12),
+            # conv_bn(12, 12),
+            # conv_bn(12, 12),
             conv_bn(12, 24, 2),
-            conv_bn(24, 24),
-            conv_bn(24, 24),
+            # conv_bn(24, 24),
+            # conv_bn(24, 24),
             conv_bn(24, 24),
             conv_bn(24, 24, 2),
-            conv_bn(24, 24),
-            conv_bn(24, 24),
+            # conv_bn(24, 24),
+            # conv_bn(24, 24),
             conv_bn(24, 24),
             conv_bn(24, 48, 2),
-            conv_bn(48, 48),
-            conv_bn(48, 48),
+            # conv_bn(48, 48),
+            # conv_bn(48, 48),
             conv_bn(48, 24),
             conv_bn(24, 48, 2),
-            conv_bn(48, 48),
+            # conv_bn(48, 48),
             conv_bn(48, 48)
         )
         self.upscale = nn.Sequential(
             conv_bn(48, 64),
             DecodeBlock(64, 128),
-            conv_bn(128, 128),
+            # conv_bn(128, 128),
             conv_bn(128, 128),
             conv_bn(128, 128),
             DecodeBlock(128, 64),
-            conv_bn(64, 64),
+            # conv_bn(64, 64),
             conv_bn(64, 64),
             conv_bn(64, 64),
             DecodeBlock(64, 64),
-            conv_bn(64, 64),
+            # conv_bn(64, 64),
             conv_bn(64, 64),
             conv_bn(64, 64),
             DecodeBlock(64, 32),
-            conv_bn(32, 32),
+            # conv_bn(32, 32),
             conv_bn(32, 32),
             conv_bn(32, 32),
         )
@@ -315,3 +342,31 @@ class AutoEncoder(nn.Module):
         features = self.features(x)
         upscale = self.upscale(features)
         return self.mat_pred(upscale), torch.sigmoid(self.size_pred(upscale))
+
+
+class SmallTagPredictor(nn.Module):
+
+    def __init__(self, num_tags: int):
+        super().__init__()
+        self.prep1_left = nn.Sequential(
+            conv_bn(12, 12, stride=2),
+            conv_bn(12, 12)
+        )
+        self.prep1_right = nn.Sequential(
+            conv_bn(12, 12, stride=2),
+            conv_bn(12, 12)
+        )
+        self.res = nn.Sequential(
+            conv_bn(24, 48, stride=2),
+            conv_bn(48, 48, stride=2),
+            conv_bn1X1(48, 128),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            Flatten(),
+            nn.Linear(128, num_tags)
+        )
+
+    def forward(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        left_p = self.prep1_left(left)
+        right_p = self.prep1_left(right)
+        cur = self.res(torch.cat((left_p, right_p), dim=1))
+        return torch.sigmoid(cur)

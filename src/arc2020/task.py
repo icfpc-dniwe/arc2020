@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 
 from .mytypes import ImgMatrix, ImgPair, TestImgPair
-from typing import List
+from typing import List, Tuple
 
 
 class Task(object):
@@ -11,6 +11,7 @@ class Task(object):
     def __init__(self, task_path: Path):
         self.train = []  # type: List[ImgPair]
         self.test = []  # type: List[TestImgPair]
+        self.tags = []  # type: List[Tuple[str, int]]
         self._append_task(task_path)
 
     def _append_task(self, task_path: Path):

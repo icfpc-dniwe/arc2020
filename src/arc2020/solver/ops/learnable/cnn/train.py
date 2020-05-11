@@ -3,9 +3,9 @@ import torch
 from torch import nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from .net import SmallRecolor, SmallWeightPredictor, SmallPredictor
+from .net import SmallRecolor, SmallWeightPredictor, SmallPredictor, ExstraSmallPredictor
 from .dataset import convert_matrix, TaskData, prep_data, config_palette, prep_img
-from .metric import multi_label_cross_entropy, masked_multi_label_accuracy, size_loss, weight_l2_norm
+from .metric import multi_label_cross_entropy, masked_multi_label_accuracy, size_loss, weight_l2_norm, multi_label_accuracy
 from ...operation import LearnableOperation
 from ....classify import OutputSizeType
 from .....mytypes import ImgMatrix
@@ -37,12 +37,12 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
     steps = (9, 15, np.inf)
     initial_lr = 3 * 1e-3
     momentum = 0.9
-    weight_decay = 1 * 1e-4
-    warmup_epoch = 1
+    weight_decay = 4 * 1e-4
+    warmup_epoch = 3
     gamma = 0.1
 
     # net = SmallRecolor()
-    predictor = SmallPredictor()
+    predictor = ExstraSmallPredictor()
     weight_predictor = SmallWeightPredictor(predictor.params_shapes)
     # net.train()
     predictor.train()
@@ -56,7 +56,7 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
     data = DataLoader(TaskData(imgs, targets, sample=True),
                       batch_size=batch_size,
                       shuffle=True,
-                      num_workers=6,
+                      num_workers=3,
                       pin_memory=True)
     optimizer = optim.SGD(train_parameters,
                           lr=initial_lr,
@@ -92,14 +92,14 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
                 preds, size_preds = predictor(inputs, weight_preds)
                 # preds = preds[:, :, 10:-10, 10:-10]
                 # labels = labels[:, 10:-10, 10:-10]
-                preds = preds * masks
+                # preds = preds * masks
                 labels = labels * masks.squeeze(1)
                 s_loss = size_loss(size_preds, sizes)
                 loss = criterion(preds, labels) + weight_l2_norm(weight_preds, weight_decay) + s_loss
                 loss.backward()
                 optimizer.step()
             cur_loss = loss.item()
-            cur_metric = masked_multi_label_accuracy(preds, labels, masks)
+            cur_metric = multi_label_accuracy(preds, labels)
             running_loss += cur_loss * inputs.size(0)
             running_metric += cur_metric * inputs.size(0)
             print(f'Epoch[{epoch_idx:03d}][{batch_idx:04d}] Loss: {cur_loss:.3f} {s_loss:.3f} | '
@@ -178,17 +178,17 @@ class LearnCNN(LearnableOperation):
 
     @staticmethod
     def _make_learnable_operation():
-        def run_cnn(img: ImgMatrix, net: nn.Module) -> ImgMatrix:
-            prep = convert_matrix(img)
-            prep = torch.from_numpy(prep.transpose((2, 0, 1)).astype(np.float32))
-            with torch.set_grad_enabled(False):
-                res = net(prep.unsqueeze(0))
-            res = res.detach().squeeze(0).numpy()
-            labels = np.argmax(res, axis=0)
-            mask = labels == 10
-            res = img * mask + labels * (1 - mask)
-            res_matrix = ImgMatrix(res)
-            return res_matrix
+        # def run_cnn(img: ImgMatrix, net: nn.Module) -> ImgMatrix:
+        #     prep = convert_matrix(img)
+        #     prep = torch.from_numpy(prep.transpose((2, 0, 1)).astype(np.float32))
+        #     with torch.set_grad_enabled(False):
+        #         res = net(prep.unsqueeze(0))
+        #     res = res.detach().squeeze(0).numpy()
+        #     labels = np.argmax(res, axis=0)
+        #     mask = labels == 10
+        #     res = img * mask + labels * (1 - mask)
+        #     res_matrix = ImgMatrix(res)
+        #     return res_matrix
 
         def run_weight_cnn(img: ImgMatrix,
                            predictor: nn.Module,
@@ -204,12 +204,13 @@ class LearnCNN(LearnableOperation):
             size = (size.detach().squeeze(0).numpy() * 30).round().astype(np.int32)
             h, w = size
             labels = np.argmax(res, axis=0)
-            return ImgMatrix(labels[10:10+h, 10:10+w])
+            # return ImgMatrix(labels[10:10+h, 10:10+w])
+            return ImgMatrix(labels[:h, :w])
 
         def learn(imgs, targets):
             train_imgs = imgs
             train_targets = targets
-            max_size = np.max([img.shape for img in imgs] + [target.shape for target in targets])
+            max_size = 30  # np.max([img.shape for img in imgs] + [target.shape for target in targets])
             # print('cur_max_size', max_size, '|', imgs[0].shape, '|', targets[0].shape)
             best_nets, _ = train(train_imgs, train_targets, True)
             # best_nets.cpu()

@@ -16,6 +16,11 @@ def multi_label_accuracy(preds: torch.Tensor, labels: torch.Tensor) -> np.ndarra
     return accuracy
 
 
+def tag_accuracy(preds: torch.Tensor, tags: torch.Tensor) -> np.ndarray:
+    thresh = 0.5
+    return np.mean((preds.detach().cpu().numpy() > thresh) == tags.detach().cpu().numpy())
+
+
 def masked_multi_label_accuracy(preds: torch.Tensor, labels: torch.Tensor, masks: torch.Tensor):
     num_correct = np.sum(np.argmax(preds.detach().cpu().numpy(), axis=1) == labels.detach().cpu().numpy())
     masks = masks.detach().cpu().numpy()

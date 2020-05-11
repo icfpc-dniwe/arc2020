@@ -9,5 +9,5 @@ def main():
     # all_tasks = io.read_all_tasks(Path.home() / 'python/arc2020/data/test')
     results1 = solve.solve(all_tasks, solver.greedy.GreedySolver, max_depth=3)
     results2 = solve.solve(all_tasks, solver.dfs.DFSSolver, max_depth=3)
-    results3 = solve.solve(all_tasks, solver.dfs.DFSSolver, max_depth=5)
+    results3 = results2
     io.write_submission((results1, results2, results3), 'submission.csv')

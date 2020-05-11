@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from .net import AutoEncoder
 from .dataset import convert_matrix, TaskData, prep_data, config_palette, prep_img
-from .metric import multi_label_cross_entropy, masked_multi_label_accuracy, size_loss
+from .metric import multi_label_cross_entropy, masked_multi_label_accuracy, size_loss, multi_label_accuracy
 from .train import adjust_learning_rate
 from ...operation import LearnableOperation
 from ....classify import OutputSizeType
@@ -67,14 +67,16 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], max_size: int, use_gp
             optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 preds, size_preds = net(inputs)
-                preds = preds * masks
+                # zero_preds = torch.zeros_like(preds).to(device)
+                # zero_preds[:, 0] = 0.5
+                # preds = preds * masks + zero_preds * (~masks)
                 labels = labels * masks.squeeze(1)
                 s_loss = size_loss(size_preds, sizes)
                 loss = criterion(preds, labels) + s_loss
                 loss.backward()
                 optimizer.step()
             cur_loss = loss.item()
-            cur_metric = masked_multi_label_accuracy(preds, labels, masks)
+            cur_metric = multi_label_accuracy(preds, labels)
             running_loss += cur_loss * inputs.size(0)
             running_metric += cur_metric * inputs.size(0)
             print(f'Epoch[{epoch_idx:03d}][{batch_idx:04d}] Loss: {cur_loss:.3f} {s_loss:.3f} | '

@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import pandas as pd
 from .task import Task
 
 from .mytypes import Result
@@ -20,6 +21,23 @@ def read_all_tasks(task_directory: Path) -> Dict[str, Task]:
 
 def read_task(task_path: Path) -> Task:
     return Task(task_path)
+
+
+def load_tags(tasks: Dict[str, Task], tags_csv: Path) -> None:
+    with open(str(tags_csv), 'r') as f:
+        header = f.readline().strip().split(',')
+    #     for line in f:
+    #         parts = line.strip().split(',')
+    #         task_name = parts[1][:parts[1].find('.')]
+    #         if task_name in tasks:
+    #             tasks[task_name].tags = list(zip(header[3:], map(int, parts[3:])))
+    tag_names = header[3:]
+    frame = pd.read_csv(tags_csv)
+    for idx, cur_row in frame.iterrows():
+        task_name = cur_row['task_name']
+        task_name = task_name[:task_name.find('.')]
+        if task_name in tasks:
+            tasks[task_name].tags = [(cur_tag, cur_row[cur_tag]) for cur_tag in tag_names]
 
 
 def flattener(pred: np.ndarray) -> str:

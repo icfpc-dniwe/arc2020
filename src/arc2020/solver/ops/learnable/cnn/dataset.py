@@ -41,7 +41,7 @@ def config_palette(img_size: int):
         # new_img[added_classes:height+added_classes, added_classes:width+added_classes] = img
         # for color_idx in range(added_classes):
         #     img = np.pad(img, 1, 'constant', constant_values=color_idx)
-        new_img = np.zeros((img_size, img_size), dtype=img.dtype) + 11
+        new_img = np.zeros((img_size, img_size), dtype=img.dtype)
         h, w = img.shape[:2]
         new_img[:h, :w] = img
         return new_img
@@ -163,7 +163,7 @@ class TaskData(data.Dataset):
         sample_indices = random.sample(range(len(self.data)), num_sample)
         # sample = random.sample(self.data, num_sample)
         sample = [self.data[i] for i in sample_indices]
-        # sample = [aug(*data, noise_colors=self.noise_palette) for data in sample]
+        sample = [aug(*data, noise_colors=self.noise_palette) for data in sample]
         sample = [prep_data(*data, cur_perm) for data in sample]
         train_sample = sample[0]
         train_labels = train_sample[1]
@@ -177,3 +177,47 @@ class TaskData(data.Dataset):
         train_mask = torch.from_numpy(train_mask)
         # return pred_sample, torch.from_numpy(sample[0][0]), torch.from_numpy(sample[0][1])
         return pred_sample[0][0], pred_sample[0][1], train_pair[0], train_pair[1], train_shapes, train_mask
+
+
+class TaggedDataset(data.Dataset):
+
+    def __init__(self, img_pairs: Sequence[Tuple[ImgMatrix, ImgMatrix]], tags: Sequence[Sequence[Tuple[str, int]]],
+                 max_size: int = -1, use_aug: bool = False):
+        super().__init__()
+        self.img_pairs = img_pairs
+        # self.tags = self.sanitize_tags(tags)
+        self.tags = tags
+        if max_size < 0:
+            max_size = np.max([np.maximum(left.shape, right.shape) for left, right in img_pairs])
+        self.palette = config_palette(max_size)
+        self.use_aug = use_aug
+
+    @staticmethod
+    def sanitize_tags(all_tags) -> Sequence[Sequence[Tuple[str, int]]]:
+        raise NotImplemented
+        all_tag_names = list(set([tag_name for cur_tags in all_tags for tag_name, tag_val in cur_tags]))
+        sanitized_tags = []
+        for cur_tags in all_tags:
+            pass
+        return sanitized_tags
+
+    @property
+    def num_tags(self) -> int:
+        return len(self.tags[0])
+
+    def __len__(self) -> int:
+        return len(self.img_pairs)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        left, right = self.img_pairs[idx]
+        left_shape = left.shape
+        right_shape = right.shape
+        tags = self.tags[idx]
+        if self.use_aug:
+            left, right, left_shape, right_shape = aug(left, right, left_shape, right_shape)
+        left = self.palette(left)
+        right = self.palette(right)
+        left, right = prep_data(left, right, left_shape, right_shape)
+        # now for the tags
+        labels = np.asarray([tag_val for tag_name, tag_val in tags]).astype(np.float32)
+        return torch.from_numpy(left), torch.from_numpy(right), torch.from_numpy(labels)

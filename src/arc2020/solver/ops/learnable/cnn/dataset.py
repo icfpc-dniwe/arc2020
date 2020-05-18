@@ -142,9 +142,9 @@ class TaskData(data.Dataset):
             self.noise_palette -= set(np.unique(cur_img).tolist())
         if max_size < 0:
             max_size = np.max([img.shape for img in imgs] + [target.shape for target in targets])
-        add_palette = config_palette(max_size)
+        self.add_palette = config_palette(max_size)
         self.noise_palette = list(self.noise_palette)
-        self.data = [(add_palette(img), add_palette(target), img.shape, target.shape)
+        self.data = [(img, target, img.shape, target.shape)
                      for img, target in zip(imgs, targets)]
         if sample:
             self.permutations = RandomPerm(all_permutations, num_sample)
@@ -156,14 +156,16 @@ class TaskData(data.Dataset):
 
     def __getitem__(self, idx: int
                     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        # cur_perm = self.permutations[idx]
-        cur_perm = None  # list(range(10))
+        cur_perm = self.permutations[idx]
+        # cur_perm = None  # list(range(10))
         # num_sample = random.randint(2, len(self.data))
         num_sample = 2
         sample_indices = random.sample(range(len(self.data)), num_sample)
         # sample = random.sample(self.data, num_sample)
         sample = [self.data[i] for i in sample_indices]
         sample = [aug(*data, noise_colors=self.noise_palette) for data in sample]
+        sample = [(self.add_palette(inp), self.add_palette(out), inp_shape, out_shape)
+                  for inp, out, inp_shape, out_shape in sample]
         sample = [prep_data(*data, cur_perm) for data in sample]
         train_sample = sample[0]
         train_labels = train_sample[1]

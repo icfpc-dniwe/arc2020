@@ -18,6 +18,5 @@ def solve(all_tasks: Dict[str, Task], solver_type: Type[Solver], **solver_kwargs
         operations = solver_fn(cur_item[1])
         return cur_item[0], apply_operations(cur_item[1], operations)
 
-    with Pool(12) as p:
-        results = dict(p.imap_unordered(worker, all_tasks.items(), chunksize=5))
+    results = dict(map(worker, all_tasks.items()))
     return results

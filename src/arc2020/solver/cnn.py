@@ -7,13 +7,14 @@ from .solver import Solver
 
 class CNNSolver(Solver):
 
-    def __init__(self):
+    def __init__(self, weights_learning: bool = True):
         super().__init__()
+        self.weights_learning = weights_learning
 
     def solve(self):
         cur_imgs = [img for img, gt in self.task.train]
         gt_imgs = [gt for img, gt in self.task.train]
-        ops = [cnn.LearnCNN.make_learnable_operation()(cur_imgs, gt_imgs)]
+        ops = [cnn.LearnCNN.make_learnable_operation(self.weights_learning)(cur_imgs, gt_imgs)]
         return ops
 
 

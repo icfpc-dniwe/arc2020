@@ -11,7 +11,7 @@ from ....classify import OutputSizeType
 from .....mytypes import ImgMatrix
 from functools import partial
 import math
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 
 
 def adjust_learning_rate(optimizer, initial_lr, warmup_epoch, gamma, epoch, step_index, iteration, epoch_size):
@@ -28,40 +28,47 @@ def adjust_learning_rate(optimizer, initial_lr, warmup_epoch, gamma, epoch, step
     return lr
 
 
-def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
-          ) -> Tuple[Tuple[nn.Module, nn.Module], float]:
+def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False, max_size = None,
+          weights_learning: bool = True
+          ) -> Tuple[Union[nn.Module, Tuple[nn.Module, nn.Module]], float]:
 
     # batch_size = 3 * 10**3
     batch_size = 256
-    num_epochs = 15
-    steps = (9, 15, np.inf)
+    num_epochs = 12
+    steps = (3, 6, 9, np.inf)
     initial_lr = 3 * 1e-3
     momentum = 0.9
     weight_decay = 4 * 1e-4
-    warmup_epoch = 3
+    warmup_epoch = 1
     gamma = 0.1
 
     # net = SmallRecolor()
-    predictor = ExstraSmallPredictor()
-    weight_predictor = SmallWeightPredictor(predictor.params_shapes)
     # net.train()
-    predictor.train()
-    weight_predictor.train()
     device = torch.device("cuda" if use_gpu else "cpu")
     # net.to(device)
-    predictor.to(device)
-    weight_predictor.to(device)
     # train_parameters = net.parameters()
-    train_parameters = list(predictor.parameters()) + list(weight_predictor.parameters())
-    data = DataLoader(TaskData(imgs, targets, sample=True),
+    if weights_learning:
+        predictor = ExstraSmallPredictor()
+        weight_predictor = SmallWeightPredictor(predictor.params_shapes)
+        predictor.train()
+        weight_predictor.train()
+        predictor.to(device)
+        weight_predictor.to(device)
+        train_parameters = list(predictor.parameters()) + list(weight_predictor.parameters())
+    else:
+        net = SmallRecolor()
+        net.train()
+        net.to(device)
+        train_parameters = net.parameters()
+    data = DataLoader(TaskData(imgs, targets, sample=True, num_sample=10 ** 4, max_size=max_size),
                       batch_size=batch_size,
                       shuffle=True,
-                      num_workers=3,
-                      pin_memory=True)
-    optimizer = optim.SGD(train_parameters,
-                          lr=initial_lr,
-                          momentum=momentum,
-                          weight_decay=weight_decay)
+                      num_workers=0,
+                      pin_memory=use_gpu)
+    optimizer = optim.Adam(train_parameters,
+                           lr=initial_lr,
+                           # momentum=momentum,
+                           weight_decay=weight_decay)
     weight = torch.from_numpy(np.array([1.0] * 10, dtype=np.float32))
     weight = weight.to(device)
     criterion = partial(multi_label_cross_entropy, weight=weight)
@@ -88,14 +95,19 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
             optimizer.zero_grad()
             with torch.set_grad_enabled(True):
                 # preds = net(inputs)
-                weight_preds = weight_predictor(weight_inputs, weight_labels)
-                preds, size_preds = predictor(inputs, weight_preds)
+                if weights_learning:
+                    weight_preds = weight_predictor(weight_inputs, weight_labels)
+                    preds, size_preds = predictor(inputs, weight_preds)
+                else:
+                    preds, size_preds = net(inputs)
                 # preds = preds[:, :, 10:-10, 10:-10]
                 # labels = labels[:, 10:-10, 10:-10]
                 # preds = preds * masks
                 labels = labels * masks.squeeze(1)
                 s_loss = size_loss(size_preds, sizes)
-                loss = criterion(preds, labels) + weight_l2_norm(weight_preds, weight_decay) + s_loss
+                loss = criterion(preds, labels) + s_loss
+                if weights_learning:
+                    loss += weight_l2_norm(weight_preds, weight_decay)
                 loss.backward()
                 optimizer.step()
             cur_loss = loss.item()
@@ -114,11 +126,13 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False
                 break
         else:
             early_stop = 0
-    predictor.eval()
-    weight_predictor.eval()
-    return (predictor, weight_predictor), float(epoch_metric)
-    # net.eval()
-    # return net, float(epoch_metric)
+    if weights_learning:
+        predictor.eval()
+        weight_predictor.eval()
+        return (predictor, weight_predictor), float(epoch_metric)
+    else:
+        net.eval()
+        return net, float(epoch_metric)
 
 
 # def eval_net(net: nn.Module, imgs: List[ImgMatrix], targets: List[ImgMatrix], use_gpu: bool = False) -> float:
@@ -177,8 +191,8 @@ class LearnCNN(LearnableOperation):
     supported_outputs = [e for e in OutputSizeType]
 
     @staticmethod
-    def _make_learnable_operation():
-        # def run_cnn(img: ImgMatrix, net: nn.Module) -> ImgMatrix:
+    def _make_learnable_operation(weights_learning: bool = True):
+        # def run_cnn(img: ImgMatrix, net: nn.Module, img_size: int) -> ImgMatrix:
         #     prep = convert_matrix(img)
         #     prep = torch.from_numpy(prep.transpose((2, 0, 1)).astype(np.float32))
         #     with torch.set_grad_enabled(False):
@@ -199,7 +213,10 @@ class LearnCNN(LearnableOperation):
             prep = prep_img(add_palette(img), img.shape).astype(np.float32)
             prep = torch.from_numpy(prep)
             with torch.set_grad_enabled(False):
-                res, size = predictor(prep.unsqueeze(0), weights)
+                if weights is None:
+                    res, size = predictor(prep.unsqueeze(0))
+                else:
+                    res, size = predictor(prep.unsqueeze(0), weights)
             res = res.detach().squeeze(0).numpy()
             size = (size.detach().squeeze(0).numpy() * 30).round().astype(np.int32)
             h, w = size
@@ -212,12 +229,17 @@ class LearnCNN(LearnableOperation):
             train_targets = targets
             max_size = 30  # np.max([img.shape for img in imgs] + [target.shape for target in targets])
             # print('cur_max_size', max_size, '|', imgs[0].shape, '|', targets[0].shape)
-            best_nets, _ = train(train_imgs, train_targets, True)
+            best_nets, _ = train(train_imgs, train_targets, True,
+                                 max_size=max_size, weights_learning=weights_learning)
             # best_nets.cpu()
-            best_nets = (best_nets[0].cpu(), best_nets[1].cpu())
-            inps, outs = prepare_eval(imgs, targets, max_size, torch.device('cpu'))
-            with torch.set_grad_enabled(False):
-                weights = best_nets[1](inps, outs)
+            if weights_learning:
+                best_nets = (best_nets[0].cpu(), best_nets[1].cpu())
+                inps, outs = prepare_eval(imgs, targets, max_size, torch.device('cpu'))
+                with torch.set_grad_enabled(False):
+                    weights = best_nets[1](inps, outs)
+            else:
+                best_nets = (best_nets.cpu(),)
+                weights = None
             # return lambda img: run_cnn(img, best_nets)
             return lambda img: run_weight_cnn(img, best_nets[0], weights, max_size)
 

@@ -44,3 +44,8 @@ if __name__ == '__main__':
         for cur_acc in test_acc:
             print(','.join([f'{tag_acc:.5f}' for tag_acc in cur_acc]), file=f)
     print('Done!')
+    auc = [cur_auc for cur_auc in test_roc if cur_auc > -0.5]
+    auc2 = [cur_auc for cur_idx, cur_auc in enumerate(test_roc)
+            if np.unique(test_tags[:, cur_idx], return_counts=True)[1][0] / test_tags.shape[0] < 0.9]
+    print(np.mean(auc), np.max(auc), np.min(auc))
+    print(np.mean(auc2), np.max(auc2), np.min(auc2))

@@ -101,26 +101,33 @@ class SmallRecolor(nn.Module):
     def __init__(self):
         super(SmallRecolor, self).__init__()
         self.prep1 = nn.Sequential(
-            conv_bn(10, 12),
             conv_bn(12, 12),
-            conv_bn(12, 14)
+            conv_bn(12, 12),
+            conv_bn(12, 12)
         )
         self.prep2 = nn.Sequential(
             conv_bn(24, 24),
             conv_bn(24, 24),
-            conv_bn(24, 14)
+            conv_bn(24, 12)
         )
         self.res = nn.Sequential(
-            conv_bn(24, 24),
-            conv_bn(24, 24),
-            conv_bn(24, 10)
+            conv_bn(24, 32),
+            conv_bn(32, 32),
+            conv_bn(32, 32)
+        )
+        self.mat_pred = nn.Conv2d(32, 10, 3, 1, 1)
+        self.size_pred = nn.Sequential(
+            nn.Conv2d(32, 32, 3, 1, 1),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Conv2d(32, 2, 1, 1, 0),
+            Flatten()
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         cur = self.prep1(x)
         cur = self.prep2(torch.cat((cur, x), dim=1))
         cur = self.res(torch.cat((cur, x), dim=1))
-        return cur
+        return self.mat_pred(cur), self.size_pred(cur)
 
 
 class SmallPredictor(nn.Module):
@@ -293,40 +300,40 @@ class AutoEncoder(nn.Module):
         super().__init__()
         self.features = nn.Sequential(
             conv_bn(12, 12),
-            # conv_bn(12, 12),
-            # conv_bn(12, 12),
+            conv_bn(12, 12),
+            conv_bn(12, 12),
             conv_bn(12, 24, 2),
-            # conv_bn(24, 24),
-            # conv_bn(24, 24),
+            conv_bn(24, 24),
+            conv_bn(24, 24),
             conv_bn(24, 24),
             conv_bn(24, 24, 2),
-            # conv_bn(24, 24),
-            # conv_bn(24, 24),
+            conv_bn(24, 24),
+            conv_bn(24, 24),
             conv_bn(24, 24),
             conv_bn(24, 48, 2),
-            # conv_bn(48, 48),
-            # conv_bn(48, 48),
+            conv_bn(48, 48),
+            conv_bn(48, 48),
             conv_bn(48, 24),
             conv_bn(24, 48, 2),
-            # conv_bn(48, 48),
+            conv_bn(48, 48),
             conv_bn(48, 48)
         )
         self.upscale = nn.Sequential(
             conv_bn(48, 64),
             DecodeBlock(64, 128),
-            # conv_bn(128, 128),
+            conv_bn(128, 128),
             conv_bn(128, 128),
             conv_bn(128, 128),
             DecodeBlock(128, 64),
-            # conv_bn(64, 64),
+            conv_bn(64, 64),
             conv_bn(64, 64),
             conv_bn(64, 64),
             DecodeBlock(64, 64),
-            # conv_bn(64, 64),
+            conv_bn(64, 64),
             conv_bn(64, 64),
             conv_bn(64, 64),
             DecodeBlock(64, 32),
-            # conv_bn(32, 32),
+            conv_bn(32, 32),
             conv_bn(32, 32),
             conv_bn(32, 32),
         )
@@ -349,16 +356,29 @@ class SmallTagPredictor(nn.Module):
     def __init__(self, num_tags: int):
         super().__init__()
         self.prep1_left = nn.Sequential(
-            conv_bn(12, 12, stride=2),
-            conv_bn(12, 12)
+            conv_dw(12, 12, stride=2),
+            # conv_bn(12, 12),
+            conv_dw(12, 12)
         )
         self.prep1_right = nn.Sequential(
-            conv_bn(12, 12, stride=2),
-            conv_bn(12, 12)
+            conv_dw(12, 12, stride=2),
+            # conv_bn(12, 12),
+            conv_dw(12, 12)
         )
-        self.res = nn.Sequential(
-            conv_bn(24, 48, stride=2),
-            conv_bn(48, 48, stride=2),
+        self.stage1 = nn.Sequential(
+            conv_dw(24, 48, stride=2),
+            # conv_bn(48, 48, stride=1),
+            # conv_bn(48, 48, stride=1),
+            conv_dw(48, 48, stride=1)
+        )
+        self.bottleneck1 = nn.Sequential(
+            conv_dw(24, 48, stride=2)
+        )
+        self.stage2 = nn.Sequential(
+            conv_dw(48, 48, stride=2),
+            # conv_bn(48, 48, stride=1),
+            # conv_bn(48, 48, stride=1),
+            conv_dw(48, 48, stride=1),
             conv_bn1X1(48, 128),
             nn.AdaptiveAvgPool2d((1, 1)),
             Flatten(),
@@ -368,5 +388,8 @@ class SmallTagPredictor(nn.Module):
     def forward(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         left_p = self.prep1_left(left)
         right_p = self.prep1_left(right)
-        cur = self.res(torch.cat((left_p, right_p), dim=1))
+        prev = torch.cat((left_p, right_p), dim=1)
+        cur = self.stage1(prev)
+        bottle1 = self.bottleneck1(prev)
+        cur = self.stage2(cur + bottle1)
         return torch.sigmoid(cur)

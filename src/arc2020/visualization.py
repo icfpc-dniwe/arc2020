@@ -11,8 +11,9 @@ def plot_one(ax: Optional[plt.Axes], task_matrix: np.ndarray, is_input: bool, is
         _, ax = plt.subplots(1, 1, figsize=(3, 3))
     cmap = colors.ListedColormap(
         ['#000000', '#0074D9', '#FF4136', '#2ECC40', '#FFDC00',
-         '#AAAAAA', '#F012BE', '#FF851B', '#7FDBFF', '#870C25'])
-    norm = colors.Normalize(vmin=0, vmax=9)
+         '#AAAAAA', '#F012BE', '#FF851B', '#7FDBFF', '#870C25',
+         '#FFFFFF'])
+    norm = colors.Normalize(vmin=0, vmax=10)
     ax.imshow(task_matrix, cmap=cmap, norm=norm)
     ax.grid(True, which='both', color='lightgrey', linewidth=0.5)
     ax.set_yticks([x - 0.5 for x in range(1 + len(task_matrix))])

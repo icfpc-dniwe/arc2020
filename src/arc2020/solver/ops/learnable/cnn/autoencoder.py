@@ -23,7 +23,7 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], max_size: int, use_gp
     batch_size = 256
     num_epochs = 100
     steps = (15, 25, 35, 50, 75, np.inf)
-    initial_lr = 1e-2
+    initial_lr = 3 * 1e-3
     momentum = 0.9
     weight_decay = 1 * 1e-4
     warmup_epoch = 5
@@ -33,17 +33,18 @@ def train(imgs: List[ImgMatrix], targets: List[ImgMatrix], max_size: int, use_gp
     net.train()
     device = torch.device("cuda" if use_gpu else "cpu")
     net.to(device)
+    # torch.load()
     train_parameters = net.parameters()
-    data = DataLoader(TaskData(imgs, imgs, sample=True, num_sample=10 ** 4, max_size=max_size),
+    data = DataLoader(TaskData(imgs, imgs, sample=True, num_sample=10 ** 5, max_size=max_size),
                       batch_size=batch_size,
                       shuffle=True,
                       num_workers=3,
                       pin_memory=True,
                       drop_last=True)
-    optimizer = optim.SGD(train_parameters,
-                          lr=initial_lr,
-                          momentum=momentum,
-                          weight_decay=weight_decay)
+    optimizer = optim.Adam(train_parameters,
+                           lr=initial_lr,
+                           # momentum=momentum,
+                           weight_decay=weight_decay)
     weight = torch.from_numpy(np.array([1.0] * 10, dtype=np.float32))
     weight = weight.to(device)
     criterion = partial(multi_label_cross_entropy, weight=weight)

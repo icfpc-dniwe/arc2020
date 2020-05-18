@@ -20,7 +20,7 @@ class ColorMap(LearnableOperation):
 
 
 class FixedOutput(LearnableOperation):
-    supported_outputs = [OutputSizeType.SQUARE_SAME]
+    supported_outputs = [OutputSizeType.SAME]
 
     @staticmethod
     def _make_learnable_operation():
@@ -31,7 +31,7 @@ class FixedOutput(LearnableOperation):
 
 
 class Patches(LearnableOperation):
-    supported_outputs = [OutputSizeType.SQUARE_SAME]
+    supported_outputs = [OutputSizeType.SAME]
 
     @staticmethod
     def _make_learnable_operation(patch_size: int = 2):

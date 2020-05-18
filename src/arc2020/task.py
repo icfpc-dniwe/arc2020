@@ -12,6 +12,7 @@ class Task(object):
         self.train = []  # type: List[ImgPair]
         self.test = []  # type: List[TestImgPair]
         self.tags = []  # type: List[Tuple[str, int]]
+        self.name = task_path.stem
         self._append_task(task_path)
 
     def _append_task(self, task_path: Path):

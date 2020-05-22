@@ -51,7 +51,9 @@ if __name__ == '__main__':
     # first_keys = list(all_tasks.keys())[:300]
     # last_keys = list(all_tasks.keys())[300:]
     # cur_tasks = {key: all_tasks[key] for key in first_keys}
-    results = solve.solve(all_tasks, my_solver, use_hist=True, use_aug=False)
+    # results = solve.solve(all_tasks, my_solver, use_hist=True, use_aug=True, additional_weights=False)
+    results = solve.solve(all_tasks, solver.color.ColorSolver,
+                          next_solver=my_solver(use_aug=True), additional_weights=True)
     # results, ops = pretrain.pretrain(cur_tasks, None)
     # io.write_submission((results, results, results), '../data/debug_submission.csv')
     validation_num = len(results)
@@ -59,6 +61,8 @@ if __name__ == '__main__':
     for task_name, task in cur_tasks.items():
         res = solver.utils.validate_result(task, results[task_name])
         positive_num += int(res)
+        if res:
+            print(task_name)
     print(positive_num, '/', validation_num)
     data_path = Path('../data/evaluation')
     all_tasks = io.read_all_tasks(data_path)
@@ -68,6 +72,8 @@ if __name__ == '__main__':
     for task_name, task in all_tasks.items():
         res = solver.utils.validate_result(task, results[task_name])
         positive_num += int(res)
+        if res:
+            print(task_name)
     print(positive_num, '/', validation_num)
     # task_name = '0e206a2e.json'
     # task_name = '39e1d7f9.json'

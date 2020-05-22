@@ -26,7 +26,6 @@ class Solver:
 
         if len(self.possible_operations) + len(self.learnable_operations) == 0:
             return []
-        print(task.name)
         return self.solve()
 
     def solve(self) -> List[Operation]:

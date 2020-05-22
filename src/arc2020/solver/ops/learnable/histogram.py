@@ -1,9 +1,9 @@
 import numpy as np
 from scipy import optimize
-# from ..operation import LearnableTransform, Transform
 from ...classify import OutputSizeType
 from ....mytypes import ImgMatrix
-from typing import Sequence, Tuple
+from ..operation import LearnableOperation
+from typing import Sequence, Tuple, Dict
 
 
 def calc_color_hist(img_matrix):
@@ -13,12 +13,14 @@ def calc_color_hist(img_matrix):
     return unique_colors, normalized_counts
 
 
-def calc_color_map(img_matrix, target_hist):
+def calc_color_map(img_matrix, target_hist, additional_weights: bool = False):
     unique_colors, normalized_counts = calc_color_hist(img_matrix)
     cost_matrix = np.zeros((len(unique_colors), 10), dtype=np.float32) + 10
     for cur_color, cur_norm_count in enumerate(normalized_counts):
         for target_color, target_norm_count in target_hist.items():
             metric = np.abs(target_norm_count - cur_norm_count)
+            if additional_weights and (target_color == 0 or cur_color == 0) and target_color != cur_color:
+                metric += 0.3
             cost_matrix[cur_color, target_color] = metric
     inp_color, tar_color = optimize.linear_sum_assignment(cost_matrix)
     residual = cost_matrix[inp_color, tar_color].sum()
@@ -37,7 +39,7 @@ def apply_color_map(img_matrix, color_map):
     return new_matrix
 
 
-def get_target_hist(imgs: Sequence[ImgMatrix]):
+def get_target_hist(imgs: Sequence[ImgMatrix]) -> Dict[int, float]:
     img_idx = 0
     num_colors = 0
     for cur_idx, cur_img in enumerate(imgs):
@@ -48,34 +50,40 @@ def get_target_hist(imgs: Sequence[ImgMatrix]):
     return dict(zip(*calc_color_hist(imgs[img_idx])))
 
 
-# class ReversableColorMatching(Transform):
-#
-#     @staticmethod
-#     def forward(img):
-#         cur_color_map, residual = calc_color_map(img, self.target_hist)
-#         img = apply_color_map(img, cur_color_map)
-#         target = apply_color_map(target, cur_color_map)
-#         inv_color_map = inverse_color_map(cur_color_map)
-#         return img, target
-#
-#     def __call__(self, target: ImgMatrix) -> ImgMatrix:
-#         return apply_color_map(target, self.inv_color_map)
-#
-#
-# class ColorMatching(LearnableTransform):
-#     supported_outputs = [e for e in OutputSizeType]
-#
-#     @staticmethod
-#     def _make_learnable_transform():
-#
-#         def learn(imgs, targets):
-#             target_hist = get_target_hist(imgs)
-#
-#             def forward(img: ImgMatrix, target: ImgMatrix) -> Tuple[ImgMatrix, ImgMatrix]:
-#                 pass
-#
-#             def backward(prediction: ImgMatrix) -> ImgMatrix:
-#                 pass
-#
-#             return forward, backward
-#         return learn
+def has_same_colors(imgs: Sequence[ImgMatrix]) -> bool:
+    pass
+
+
+def max_num_colors(imgs: Sequence[ImgMatrix]) -> int:
+    return np.max([len(np.unique(cur_img)) for cur_img in imgs])
+
+
+class ColorMatching:
+    supported_outputs = [e for e in OutputSizeType]
+
+    def __init__(self, target_hist: Dict[int, float], additional_weights: bool = False):
+        self.target_hist = target_hist
+        self.inv_color_map = None
+        self.additional_weights = additional_weights
+
+    def transform(self, img: ImgMatrix, target: ImgMatrix) -> Tuple[ImgMatrix, ImgMatrix]:
+        cur_color_map, residual = calc_color_map(img, self.target_hist, self.additional_weights)
+        img = apply_color_map(img, cur_color_map)
+        target = apply_color_map(target, cur_color_map)
+        return img, target
+
+    def forward(self, img: ImgMatrix) -> ImgMatrix:
+        cur_color_map, residual = calc_color_map(img, self.target_hist, self.additional_weights)
+        img = apply_color_map(img, cur_color_map)
+        self.inv_color_map = inverse_color_map(cur_color_map)
+        return img
+
+    def backward(self, img: ImgMatrix) -> ImgMatrix:
+        return apply_color_map(img, self.inv_color_map)
+
+
+class LearnableCororMatching:
+    @staticmethod
+    def learn(imgs, targets, additional_weights: bool = False) -> ColorMatching:
+        target_hist = get_target_hist(imgs)
+        return ColorMatching(target_hist, additional_weights)

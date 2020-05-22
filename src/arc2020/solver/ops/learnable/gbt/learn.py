@@ -7,6 +7,7 @@ from ..histogram import get_target_hist, apply_color_map, inverse_color_map, cal
 from ...operation import LearnableOperation
 from ....classify import OutputSizeType
 from .....mytypes import ImgMatrix, ImgPair
+from typing import Dict, Optional
 
 
 class LearnGBT(LearnableOperation):
@@ -15,12 +16,13 @@ class LearnGBT(LearnableOperation):
     @staticmethod
     def _make_learnable_operation(use_aug: bool = False,
                                   residual_prediction: bool = True,
-                                  use_hist: bool = True,
+                                  # use_hist: bool = True,
                                   max_dist: int = 7,
                                   max_dilate: int = 3,
                                   local_neighb: int = 5,
                                   sym_max: int = 2,
                                   n_estimators: int = 200,
+                                  # target_hist: Optional[Dict[int, float]] = None,
                                   **gbt_kwargs):
 
         def prepare_features(matrix: ImgMatrix) -> np.ndarray:
@@ -29,15 +31,16 @@ class LearnGBT(LearnableOperation):
             return concatenate_features(features)
 
         def learn(imgs, targets):
-            target_hist = get_target_hist(imgs)
-            ensemble = XGBClassifier(n_estimators=n_estimators, n_jobs=-1, **gbt_kwargs)
+            # if target_hist is None:
+            #     target_hist = get_target_hist(imgs)
+            ensemble = XGBClassifier(n_estimators=n_estimators, n_jobs=6, **gbt_kwargs)
 
             def worker(img_pair: ImgPair):
                 input_img, output_img = img_pair
-                if use_hist:
-                    cur_color_map, residual = calc_color_map(input_img, target_hist)
-                    input_img = apply_color_map(input_img, cur_color_map)
-                    output_img = apply_color_map(output_img, cur_color_map)
+                # if use_hist:
+                #     cur_color_map, residual = calc_color_map(input_img, target_hist)
+                #     input_img = apply_color_map(input_img, cur_color_map)
+                #     output_img = apply_color_map(output_img, cur_color_map)
                 if residual_prediction:
                     diff = output_img != input_img
                     output_img = 10 * (1 - diff) + output_img * diff
@@ -74,18 +77,18 @@ class LearnGBT(LearnableOperation):
 
             def predict(img: ImgMatrix
                         ) -> ImgMatrix:
-                if use_hist:
-                    cur_color_map, residual = calc_color_map(img, target_hist)
-                    img = apply_color_map(img, cur_color_map)
-                    inv_color_map = inverse_color_map(cur_color_map)
+                # if use_hist:
+                #     cur_color_map, residual = calc_color_map(img, target_hist)
+                #     img = apply_color_map(img, cur_color_map)
+                #     inv_color_map = inverse_color_map(cur_color_map)
                 cur_features = prepare_features(img)
                 cur_features = feat_selector.transform(cur_features)
                 preds = ensemble.predict(cur_features).reshape(img.shape)
                 if residual_prediction:
                     diff_map = preds == 10
                     preds = img * diff_map + preds * (1 - diff_map)
-                if use_hist:
-                    preds = apply_color_map(preds, inv_color_map)
+                # if use_hist:
+                #     preds = apply_color_map(preds, inv_color_map)
                 return ImgMatrix(preds)
 
             return predict

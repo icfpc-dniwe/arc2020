@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from collections import OrderedDict
+from pathos.multiprocessing import ThreadingPool
 from typing import Dict, Iterable, Tuple
 
 
@@ -163,15 +164,21 @@ class SmallPredictor(nn.Module):
     def prepare_weights(self, weights: Dict[str, torch.Tensor]) -> Dict[str, Dict[str, torch.Tensor]]:
         res_weights = {}
         for key, cur_weights in weights.items():
-            if len(cur_weights.shape) > 1:
-                cur_weights = cur_weights.mean(dim=0)
+            # if len(cur_weights.shape) > 1:
+            #     cur_weights = cur_weights.mean(dim=0)
             res_weights[key] = {}
             cur_bg = 0
             for ins_key, ins_shape in self.params_shapes[key].items():
                 cur_size = int(np.prod(ins_shape))
-                res_weights[key][ins_key] = cur_weights[cur_bg:cur_bg+cur_size].reshape(ins_shape)
+                res_weights[key][ins_key] = cur_weights[:, cur_bg:cur_bg+cur_size].reshape((-1, *ins_shape))
                 cur_bg += cur_size
         return res_weights
+
+    @staticmethod
+    def splitted_conv2d(batch: torch.Tensor, weights: torch.Tensor, padding: int) -> torch.Tensor:
+        with ThreadingPool(4) as p:
+            results = p.map(lambda el: F.conv2d(el[0].unsqueeze(0), el[1], padding=padding), zip(batch, weights))
+        return torch.cat(results, dim=0)
 
     def forward(self, x: torch.Tensor, weights: Dict[str, torch.Tensor]
                 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -182,7 +189,7 @@ class SmallPredictor(nn.Module):
                 break
             for conv_key in stage_vals.keys():
                 padding = self.params_shapes[stage_key][conv_key][2] // 2
-                conv = F.conv2d(cur_stage, weights[stage_key][conv_key], padding=padding)
+                conv = self.splitted_conv2d(cur_stage, weights[stage_key][conv_key], padding=padding)
                 bn = self.stage_bns[stage_key][conv_key](conv)
                 cur_stage = F.relu(bn, inplace=True)
             cur_stage = torch.cat([cur_stage, x], dim=1)
@@ -191,7 +198,7 @@ class SmallPredictor(nn.Module):
         # cur_size = F.conv2d(cur_size, weights['stage4']['size_pred2'], padding=0)
         # cur_size = cur_size.view(-1, 2)
         padding = self.params_shapes['stage4']['conv_pred'][2] // 2
-        cur_stage = F.conv2d(cur_stage, weights['stage4']['conv_pred'], padding=padding)
+        cur_stage = self.splitted_conv2d(cur_stage, weights['stage4']['conv_pred'], padding=padding)
         return cur_stage
 
 

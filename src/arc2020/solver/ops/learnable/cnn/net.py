@@ -136,24 +136,22 @@ class SmallPredictor(nn.Module):
         super(SmallPredictor, self).__init__()
         self.params_shapes = OrderedDict(
             stage1=OrderedDict(
-                conv1_1=(12, 12, 3, 3),
+                conv1_1=(12, 10, 3, 3),
                 conv1_2=(12, 12, 3, 3),
                 conv1_3=(12, 12, 3, 3),
             ),
             stage2=OrderedDict(
-                conv2_1=(24, 24, 3, 3),
+                conv2_1=(24, 22, 3, 3),
                 conv2_2=(24, 24, 3, 3),
                 conv2_3=(12, 24, 3, 3),
             ),
             stage3=OrderedDict(
-                conv3_1=(24, 24, 3, 3),
+                conv3_1=(24, 22, 3, 3),
                 conv3_2=(24, 24, 3, 3),
                 conv3_3=(12, 24, 3, 3),
             ),
             stage4=OrderedDict(
-                conv_pred=(10, 24, 1, 1),
-                size_pred1=(12, 24, 1, 1),
-                size_pred2=(2, 12, 1, 1)
+                conv_pred=(11, 22, 1, 1)
             )
         )
         self.stage_bns = {key: {ins_key: nn.BatchNorm2d(ins_val[0]) for ins_key, ins_val in val.items()}
@@ -188,12 +186,13 @@ class SmallPredictor(nn.Module):
                 bn = self.stage_bns[stage_key][conv_key](conv)
                 cur_stage = F.relu(bn, inplace=True)
             cur_stage = torch.cat([cur_stage, x], dim=1)
-        cur_size = F.conv2d(cur_stage, weights['stage4']['size_pred1'], padding=0)
-        cur_size = F.adaptive_avg_pool2d(cur_size, (1, 1))
-        cur_size = F.conv2d(cur_size, weights['stage4']['size_pred2'], padding=0)
-        cur_size = cur_size.view(-1, 2)
-        cur_stage = F.conv2d(cur_stage, weights['stage4']['conv_pred'], padding=0)
-        return cur_stage, cur_size
+        # cur_size = F.conv2d(cur_stage, weights['stage4']['size_pred1'], padding=0)
+        # cur_size = F.adaptive_avg_pool2d(cur_size, (1, 1))
+        # cur_size = F.conv2d(cur_size, weights['stage4']['size_pred2'], padding=0)
+        # cur_size = cur_size.view(-1, 2)
+        padding = self.params_shapes['stage4']['conv_pred'][2] // 2
+        cur_stage = F.conv2d(cur_stage, weights['stage4']['conv_pred'], padding=padding)
+        return cur_stage
 
 
 class ExstraSmallPredictor(SmallPredictor):
@@ -202,18 +201,16 @@ class ExstraSmallPredictor(SmallPredictor):
         super().__init__()
         self.params_shapes = OrderedDict(
             stage1=OrderedDict(
-                conv1_1=(8, 12, 3, 3),
+                conv1_1=(8, 10, 3, 3),
             ),
             stage2=OrderedDict(
-                conv2_1=(8, 20, 3, 3),
+                conv2_1=(8, 18, 3, 3),
             ),
             stage3=OrderedDict(
-                conv3_1=(8, 20, 3, 3),
+                conv3_1=(8, 18, 3, 3),
             ),
             stage4=OrderedDict(
-                conv_pred=(10, 20, 1, 1),
-                size_pred1=(2, 20, 1, 1),
-                size_pred2=(2, 2, 1, 1)
+                conv_pred=(11, 18, 3, 3)
             )
         )
         self.stage_bns = {key: {ins_key: nn.BatchNorm2d(ins_val[0]) for ins_key, ins_val in val.items()}
@@ -266,7 +263,7 @@ class SmallWeightPredictor(nn.Module):
     @staticmethod
     def head_conv() -> nn.Module:
         return nn.Sequential(
-            conv_bn(12, 12),
+            conv_bn(10, 12),
             conv_bn(12, 12),
             conv_bn(12, 12)
         )

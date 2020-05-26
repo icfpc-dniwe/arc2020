@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from typing import Dict
 
 
-def multi_label_cross_entropy(preds: torch.Tensor, labels: torch.Tensor, weight: torch.Tensor):
+def multi_label_cross_entropy(preds: torch.Tensor, labels: torch.Tensor, weight: torch.Tensor = None):
     preds = preds.reshape(preds.size(0), preds.size(1), -1)
     labels = labels.reshape(labels.size(0), -1)
     loss = F.cross_entropy(preds, labels, weight=weight)

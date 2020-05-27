@@ -30,3 +30,6 @@ class Solver:
 
     def solve(self) -> List[Operation]:
         raise NotImplemented
+
+    def pretrain(self, all_tasks: List[Task]) -> List[Operation]:
+        raise NotImplemented

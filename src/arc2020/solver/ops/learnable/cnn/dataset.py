@@ -129,8 +129,7 @@ class TaskData(data.Dataset):
         for cur_img in imgs:
             self.noise_palette -= set(np.unique(cur_img).tolist())
         self.noise_palette = list(self.noise_palette)
-        self.data = [(img, target)
-                     for img, target in zip(imgs, targets)]
+        self.data = list(zip(imgs, targets))
         if sample:
             self.permutations = RandomPerm(all_permutations, num_sample)
         else:

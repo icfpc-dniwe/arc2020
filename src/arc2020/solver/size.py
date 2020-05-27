@@ -35,13 +35,14 @@ def get_matrix_dims(inputs, targets=None):
     return amatrix_dims
 
 
+# https://www.kaggle.com/smurfysannes/matrix-dimensions-calculator-86-accuracy
 def get_matrix_rule(amatrix_dims):
     funcs_match_not_unknown = False
     multiplier_height = []
     multiplier_width = []
     addition_height = []
     addition_width = []
-    answer_height = 'unknown' # if no rule found then uses size of 30
+    answer_height = 'unknown'
     height_param = 30
     answer_width = 'unknown'
     width_param = 30
@@ -170,18 +171,31 @@ class SizeSolver(Solver):
         self.next_solver = next_solver
         self.resize_max = resize_max
 
-    def solve(self):
-        cur_pairs = self.task.train
+    def transform_task(self, task):
+        cur_pairs = task.train
         cur_imgs = [img for img, gt in cur_pairs]
         gt_imgs = [gt for img, gt in cur_pairs]
         amatrix_dims = get_matrix_dims(cur_imgs, gt_imgs)
         rules = get_matrix_rule(amatrix_dims)
         transform = rules[0] != 'unknown' or rules[2] != 'unknown'
+        transformer = None
         if transform:
             transformer = ResizeTransform(rules, self.resize_max)
             cur_pairs = [transformer.transform(img, gt) for img, gt in cur_pairs]
-            self.task.train = cur_pairs
+            task.train = cur_pairs
+        return transformer
+
+    def solve(self):
+        transformer = self.transform_task(self.task)
         ops = self.next_solver(self.task)
-        if transform:
+        if transformer is not None:
             ops = [transformer.forward] + ops + [transformer.backward]
         return ops
+
+    def pretrain(self, all_tasks):
+        new_tasks = {}
+        for cur_name, cur_task in all_tasks.items():
+            if self.transform_task(cur_task) is not None:
+                new_tasks[cur_name] = cur_task
+        return self.next_solver.pretrain(new_tasks)
+

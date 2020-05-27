@@ -12,18 +12,26 @@ class ColorSolver(Solver):
         self.next_solver = next_solver
         self.additional_weights = additional_weights
 
-    def solve(self):
-        cur_pairs = self.task.train
+    def transform_task(self, task):
+        cur_pairs = task.train
         cur_imgs = [img for img, gt in cur_pairs]
         gt_imgs = [gt for img, gt in cur_pairs]
-        test_imgs = [img for img, _ in self.task.test]
-        transform = False
+        test_imgs = [img for img, _ in task.test]
+        transformer = None
         if histogram.max_num_colors(cur_imgs) >= histogram.max_num_colors(test_imgs):
-            transform = True
             transformer = histogram.LearnableCororMatching.learn(cur_imgs, gt_imgs, self.additional_weights)
             cur_pairs = [transformer.transform(img, gt) for img, gt in cur_pairs]
-            self.task.train = cur_pairs
+            task.train = cur_pairs
+        return transformer
+
+    def solve(self):
         ops = self.next_solver(self.task)
-        if transform:
+        transformer = self.transform_task(self.task)
+        if transformer is not None:
             ops = [transformer.forward] + ops + [transformer.backward]
         return ops
+
+    def pretrain(self, all_tasks):
+        for cur_task in all_tasks.values():
+            self.transform_task(cur_task)
+        return self.next_solver.pretrain(all_tasks)

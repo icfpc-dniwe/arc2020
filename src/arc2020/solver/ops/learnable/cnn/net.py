@@ -117,18 +117,12 @@ class SmallRecolor(nn.Module):
             conv_bn(32, 32)
         )
         self.mat_pred = nn.Conv2d(32, 10, 3, 1, 1)
-        self.size_pred = nn.Sequential(
-            nn.Conv2d(32, 32, 3, 1, 1),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Conv2d(32, 2, 1, 1, 0),
-            Flatten()
-        )
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         cur = self.prep1(x)
         cur = self.prep2(torch.cat((cur, x), dim=1))
         cur = self.res(torch.cat((cur, x), dim=1))
-        return self.mat_pred(cur), self.size_pred(cur)
+        return self.size_pred(cur)
 
 
 class SmallPredictor(nn.Module):
@@ -181,7 +175,7 @@ class SmallPredictor(nn.Module):
         return torch.cat(results, dim=0)
 
     def forward(self, x: torch.Tensor, weights: Dict[str, torch.Tensor]
-                ) -> Tuple[torch.Tensor, torch.Tensor]:
+                ) -> torch.Tensor:
         cur_stage = x
         weights = self.prepare_weights(weights)
         for stage_key, stage_vals in self.params_shapes.items():
@@ -209,12 +203,15 @@ class ExstraSmallPredictor(SmallPredictor):
         self.params_shapes = OrderedDict(
             stage1=OrderedDict(
                 conv1_1=(8, 10, 3, 3),
+                conv1_2=(8, 8, 3, 3),
             ),
             stage2=OrderedDict(
                 conv2_1=(8, 18, 3, 3),
+                conv2_2=(8, 8, 3, 3),
             ),
             stage3=OrderedDict(
                 conv3_1=(8, 18, 3, 3),
+                conv3_2=(8, 8, 3, 3),
             ),
             stage4=OrderedDict(
                 conv_pred=(11, 18, 3, 3)

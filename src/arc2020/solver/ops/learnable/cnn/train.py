@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+import torch.backends.cudnn as cudnn
 from .net import SmallRecolor, SmallWeightPredictor, SmallPredictor, ExstraSmallPredictor
 from .dataset import convert_matrix, TaskData, prep_data, config_palette, prep_img
 from .metric import multi_label_cross_entropy, masked_multi_label_accuracy, size_loss, weight_l2_norm, multi_label_accuracy
@@ -36,21 +37,23 @@ def train(imgs: List[ImgMatrix],
 
     # batch_size = 3 * 10**3
     batch_size = 256
-    num_epochs = 5
-    steps = (3, 6, 9, np.inf)
-    initial_lr = 3 * 1e-3
+    num_epochs = 50
+    steps = (15, 25, 40, np.inf)
+    initial_lr = 3 * 1e-4
     momentum = 0.9
     weight_decay = 4 * 1e-4
-    warmup_epoch = 1
-    gamma = 0.3
+    warmup_epoch = 5
+    gamma = 0.1
 
     # net = SmallRecolor()
     # net.train()
     device = torch.device("cuda" if use_gpu else "cpu")
+    if use_gpu:
+        cudnn.benchmark = True
     # net.to(device)
     # train_parameters = net.parameters()
     if weights_learning:
-        predictor = ExstraSmallPredictor()
+        predictor = SmallPredictor()
         weight_predictor = SmallWeightPredictor(predictor.params_shapes)
         predictor.train()
         weight_predictor.train()
@@ -65,7 +68,7 @@ def train(imgs: List[ImgMatrix],
     data = DataLoader(TaskData(imgs, targets, sample=True, num_sample=10 ** 4),
                       batch_size=batch_size,
                       shuffle=True,
-                      num_workers=0,
+                      num_workers=2,
                       pin_memory=use_gpu)
     optimizer = optim.Adam(train_parameters,
                            lr=initial_lr,

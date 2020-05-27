@@ -17,6 +17,15 @@ class CNNSolver(Solver):
         ops = [cnn.LearnCNN.make_learnable_operation(self.weights_learning)(cur_imgs, gt_imgs)]
         return ops
 
+    def pretrain(self, all_tasks):
+        all_imgs = []
+        all_gts = []
+        for cur_task in all_tasks.values():
+            all_imgs += [img for img, gt in cur_task.train]
+            all_gts += [gt for img, gt in cur_task.train]
+        ops = [cnn.LearnCNN.make_learnable_operation(self.weights_learning)(all_imgs, all_gts)]
+        return ops
+
 
 class AutoEncoderTrain(Solver):
 
@@ -32,7 +41,7 @@ class AutoEncoderTrain(Solver):
     @staticmethod
     def pretain(all_tasks):
         all_imgs = []
-        for cur_task in all_tasks:
+        for cur_task in all_tasks.values():
             all_imgs += [img for img, gt in cur_task.train] + [gt for img, gt in cur_task.train] + \
                         [img for img, gt in cur_task.test]
         ops = [cnn.LearnEncoder.make_learnable_operation()(all_imgs, None)]

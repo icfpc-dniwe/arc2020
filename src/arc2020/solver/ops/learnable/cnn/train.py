@@ -42,7 +42,7 @@ def train(imgs: List[ImgMatrix],
     initial_lr = 3 * 1e-4
     momentum = 0.9
     weight_decay = 4 * 1e-4
-    warmup_epoch = 5
+    warmup_epoch = 1
     gamma = 0.1
 
     # net = SmallRecolor()
@@ -65,10 +65,10 @@ def train(imgs: List[ImgMatrix],
         net.train()
         net.to(device)
         train_parameters = net.parameters()
-    data = DataLoader(TaskData(imgs, targets, sample=True, num_sample=10 ** 4),
+    data = DataLoader(TaskData(imgs, targets, sample=True, num_sample=10 ** 5),
                       batch_size=batch_size,
                       shuffle=True,
-                      num_workers=2,
+                      num_workers=6,
                       pin_memory=use_gpu)
     optimizer = optim.Adam(train_parameters,
                            lr=initial_lr,

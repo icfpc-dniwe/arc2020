@@ -62,6 +62,17 @@ def conv_dw(inp, oup, stride=1, act=nn.ReLU):
     )
 
 
+class Inerptol(nn.Module):
+
+    def __init__(self, factor: float = 2, mode='bilinear'):
+        super().__init__()
+        self.factor = factor
+        self.mode = mode
+
+    def forward(self, x):
+        return F.interpolate(x, scale_factor=self.factor, mode=self.mode)
+
+
 class EncodeBlock(nn.Module):
 
     def __init__(self, input_features: int, num_features: int, activation: str = 'relu', reduction: int = 2):
@@ -70,7 +81,9 @@ class EncodeBlock(nn.Module):
         self.reduce = nn.Sequential(
             nn.BatchNorm2d(input_features),
             act(),
-            nn.Conv2d(input_features, num_features, reduction * 2, reduction, reduction // 2, bias=False),
+            # nn.Conv2d(input_features, num_features, reduction * 2, reduction, reduction // 2, bias=False),
+            Inerptol(1 / reduction),
+            nn.Conv2d(input_features, num_features, 3, padding=1, bias=False),
             nn.BatchNorm2d(num_features),
             act(inplace=True)
         )
@@ -88,7 +101,9 @@ class DecodeBlock(nn.Module):
             nn.BatchNorm2d(input_features),
             act(),
             # nn.Conv2d(input_features, num_features, reduction * 2, reduction, reduction // 2, bias=False),
-            nn.ConvTranspose2d(input_features, num_features, upsample * 2, upsample, upsample // 2),
+            # nn.ConvTranspose2d(input_features, num_features, upsample * 2, upsample, upsample // 2),
+            Inerptol(upsample),
+            nn.Conv2d(input_features, num_features, 3, padding=1, bias=False),
             nn.BatchNorm2d(num_features),
             act()
         )
@@ -131,22 +146,34 @@ class SmallPredictor(nn.Module):
         super(SmallPredictor, self).__init__()
         self.params_shapes = OrderedDict(
             stage1=OrderedDict(
-                conv1_1=(12, 10, 3, 3),
-                conv1_2=(12, 12, 3, 3),
-                conv1_3=(12, 12, 3, 3),
+                conv1_1=(4, 10, 3, 3),
+                conv1_2=(4, 4, 3, 3),
+                conv1_3=(4, 4, 3, 3),
+                conv1_4=(4, 4, 3, 3),
+                conv1_5=(4, 4, 3, 3),
+                conv1_6=(4, 4, 3, 3),
+                conv1_7=(4, 4, 3, 3),
             ),
             stage2=OrderedDict(
-                conv2_1=(24, 22, 3, 3),
-                conv2_2=(24, 24, 3, 3),
-                conv2_3=(12, 24, 3, 3),
+                conv2_1=(5, 14, 3, 3),
+                conv2_2=(5, 5, 3, 3),
+                conv2_3=(5, 5, 3, 3),
+                conv2_4=(5, 5, 3, 3),
+                conv2_5=(5, 5, 3, 3),
+                conv2_6=(5, 5, 3, 3),
+                conv2_7=(5, 5, 3, 3),
             ),
             stage3=OrderedDict(
-                conv3_1=(24, 22, 3, 3),
-                conv3_2=(24, 24, 3, 3),
-                conv3_3=(12, 24, 3, 3),
+                conv3_1=(5, 15, 3, 3),
+                conv3_2=(5, 5, 3, 3),
+                conv3_3=(5, 5, 3, 3),
+                conv3_4=(5, 5, 3, 3),
+                conv3_5=(5, 5, 3, 3),
+                conv3_6=(5, 5, 3, 3),
+                conv3_7=(5, 5, 3, 3),
             ),
             stage4=OrderedDict(
-                conv_pred=(11, 22, 1, 1)
+                conv_pred=(11, 15, 1, 1)
             )
         )
         self.stage_bns = {key: {ins_key: nn.BatchNorm2d(ins_val[0]) for ins_key, ins_val in val.items()}
@@ -232,13 +259,13 @@ class SmallWeightPredictor(nn.Module):
         self.out_s = self.head_conv()
         self.stage_keys = params_shapes.keys()
         # self.stages = []
-        self.w1_pred = self.weight_pred(24, self.calc_weight_size(params_shapes['stage1']))
+        self.w1_pred = self.weight_pred(64, self.calc_weight_size(params_shapes['stage1']))
         self.stage2 = self.stage_conv()
-        self.w2_pred = self.weight_pred(24, self.calc_weight_size(params_shapes['stage2']))
+        self.w2_pred = self.weight_pred(64, self.calc_weight_size(params_shapes['stage2']))
         self.stage3 = self.stage_conv()
-        self.w3_pred = self.weight_pred(24, self.calc_weight_size(params_shapes['stage3']))
+        self.w3_pred = self.weight_pred(64, self.calc_weight_size(params_shapes['stage3']))
         self.stage4 = self.stage_conv()
-        self.w4_pred = self.weight_pred(24, self.calc_weight_size(params_shapes['stage4']))
+        self.w4_pred = self.weight_pred(64, self.calc_weight_size(params_shapes['stage4']))
 
     @staticmethod
     def calc_weight_size(params_shape: Dict[str, Iterable[int]]) -> int:
@@ -248,36 +275,40 @@ class SmallWeightPredictor(nn.Module):
     def weight_pred(inp_channels, weight_size) -> nn.Module:
         if weight_size % 9 == 0:
             pred = nn.Sequential(
-                conv_bn(inp_channels, 24),
-                nn.Conv2d(24, 48, 1),
+                conv_bn(inp_channels, 32),
+                nn.Conv2d(32, 32, 1),
                 nn.AdaptiveAvgPool2d((3, 3)),
-                nn.Conv2d(48, weight_size // 9, 3, padding=1),
+                nn.Conv2d(32, weight_size // 9, 3, padding=1),
                 Flatten()
             )
         else:
             pred = nn.Sequential(
-                conv_bn(inp_channels, 24),
-                nn.Conv2d(24, 24, 1),
+                conv_bn(inp_channels, 32),
+                nn.Conv2d(32, 32, 1),
                 nn.AdaptiveAvgPool2d((1, 1)),
                 Flatten(),
-                nn.Linear(24, weight_size)
+                nn.Linear(32, weight_size)
             )
         return pred
 
     @staticmethod
     def head_conv() -> nn.Module:
         return nn.Sequential(
-            conv_bn(10, 12),
-            conv_bn(12, 12),
-            conv_bn(12, 12)
+            conv_bn(10, 32),
+            conv_bn(32, 32),
+            conv_bn(32, 32),
+            conv_bn(32, 32),
+            conv_bn(32, 32)
         )
 
     @staticmethod
     def stage_conv() -> nn.Module:
         return nn.Sequential(
-            conv_bn(24, 24),
-            conv_bn(24, 24),
-            conv_bn(24, 24)
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64),
+            conv_bn(64, 64)
         )
 
     def forward(self, inp: torch.Tensor, out: torch.Tensor) -> Dict[str, torch.Tensor]:

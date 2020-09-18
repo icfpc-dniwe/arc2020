@@ -7,7 +7,7 @@ from arc2020 import io, visualization, solve, solver, main
 
 if __name__ == '__main__':
     # main()
-    my_solver = solver.size.SizeSolver
+    # my_solver = solver.size.SizeSolver
     # my_solver = solver.gbt.GBTSolver
     data_path = Path('../data/training')
     # tasks = [
@@ -25,6 +25,7 @@ if __name__ == '__main__':
     # #     '1da012fc.json'
     # # ]
     # cur_solver = my_solver(next_solver=solver.cnn.CNNSolver(), resize_max=True)
+    # cur_solver = solver.cnn.CNNSolver()
     # for cur_task in tasks:
     #     print(cur_task)
     #     task = io.read_task(data_path / cur_task)
@@ -71,17 +72,17 @@ if __name__ == '__main__':
         if res:
             print(task_name)
     print(positive_num, '/', validation_num)
-    data_path = Path('../data/evaluation')
-    all_tasks = io.read_all_tasks(data_path)
-    results = solve.solve(all_tasks, my_solver)
-    validation_num = len(results)
-    positive_num = 0
-    for task_name, task in all_tasks.items():
-        res = solver.utils.validate_result(task, results[task_name])
-        positive_num += int(res)
-        if res:
-            print(task_name)
-    print(positive_num, '/', validation_num)
+    # data_path = Path('../data/evaluation')
+    # all_tasks = io.read_all_tasks(data_path)
+    # results = solve.solve(all_tasks, my_solver)
+    # validation_num = len(results)
+    # positive_num = 0
+    # for task_name, task in all_tasks.items():
+    #     res = solver.utils.validate_result(task, results[task_name])
+    #     positive_num += int(res)
+    #     if res:
+    #         print(task_name)
+    # print(positive_num, '/', validation_num)
     # task_name = '0e206a2e.json'
     # task_name = '39e1d7f9.json'
     # task = io.read_task(data_path / task_name)

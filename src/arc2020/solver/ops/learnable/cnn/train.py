@@ -4,7 +4,7 @@ from torch import nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
-from .net import SmallRecolor, SmallWeightPredictor, SmallPredictor, ExstraSmallPredictor
+from .net import SmallRecolor, SmallWeightPredictor, SmallPredictor, ExstraSmallPredictor, CANet
 from .dataset import convert_matrix, TaskData, prep_data, config_palette, prep_img
 from .metric import multi_label_cross_entropy, masked_multi_label_accuracy, size_loss, weight_l2_norm, multi_label_accuracy
 from ...operation import LearnableOperation
@@ -32,17 +32,19 @@ def adjust_learning_rate(optimizer, initial_lr, warmup_epoch, gamma, epoch, step
 def train(imgs: List[ImgMatrix],
           targets: List[ImgMatrix],
           use_gpu: bool = False,
-          weights_learning: bool = True
+          weights_learning: bool = True,
+          train_diff: bool = True
           ) -> Tuple[Union[nn.Module, Tuple[nn.Module, nn.Module]], float]:
 
     # batch_size = 3 * 10**3
-    batch_size = 256
-    num_epochs = 50
-    steps = (15, 25, 40, np.inf)
-    initial_lr = 3 * 1e-4
+    batch_size = 8
+    num_epochs = 8
+    steps = (2, 4, 6, np.inf)
+    # steps = (15, 25, 40, np.inf)
+    initial_lr = 2e-3
     momentum = 0.9
     weight_decay = 4 * 1e-4
-    warmup_epoch = 1
+    warmup_epoch = 0
     gamma = 0.1
 
     # net = SmallRecolor()
@@ -61,22 +63,23 @@ def train(imgs: List[ImgMatrix],
         weight_predictor.to(device)
         train_parameters = list(predictor.parameters()) + list(weight_predictor.parameters())
     else:
-        net = SmallRecolor()
+        # net = SmallRecolor()
+        net = CANet()
         net.train()
         net.to(device)
         train_parameters = net.parameters()
-    data = DataLoader(TaskData(imgs, targets, sample=True, num_sample=10 ** 5),
+    data = DataLoader(TaskData(imgs, targets, sample=True, num_sample=10 ** 3, train_diff=train_diff),
                       batch_size=batch_size,
                       shuffle=True,
-                      num_workers=6,
+                      num_workers=0,
                       pin_memory=use_gpu)
     optimizer = optim.Adam(train_parameters,
                            lr=initial_lr,
                            # momentum=momentum,
                            weight_decay=weight_decay)
-    weight = torch.from_numpy(np.array([1.0] * 10 + [0.01], dtype=np.float32))
-    weight = weight.to(device)
-    # weight = None
+    # weight = torch.from_numpy(np.array([1.0] * 10 + [0.01], dtype=np.float32))
+    # weight = weight.to(device)
+    weight = None
     criterion = partial(multi_label_cross_entropy, weight=weight)
     epoch_size = math.ceil(len(data.dataset) / batch_size)
     step_index = 0
@@ -227,16 +230,18 @@ class LearnCNN(LearnableOperation):
             train_targets = targets
             # print('cur_max_size', max_size, '|', imgs[0].shape, '|', targets[0].shape)
             best_nets, _ = train(train_imgs, train_targets, True,
-                                 weights_learning=weights_learning)
+                                 weights_learning=weights_learning,
+                                 train_diff=False)
             # best_nets.cpu()
             if weights_learning:
-                best_nets = (best_nets[0].cpu(), best_nets[1].cpu())
+                best_nets = (best_nets[0], best_nets[1])
                 inps, outs = prepare_eval(imgs, targets, torch.device('cpu'))
                 with torch.set_grad_enabled(False):
                     weights = best_nets[1](inps, outs)
             else:
-                best_nets = (best_nets.cpu(),)
+                best_nets = (best_nets,)
                 weights = None
+            best_nets[0].cpu()
             # return lambda img: run_cnn(img, best_nets)
             return lambda img: run_weight_cnn(img, best_nets[0], weights)
 

@@ -425,3 +425,70 @@ class SmallTagPredictor(nn.Module):
         bottle1 = self.bottleneck1(prev)
         cur = self.stage2(cur + bottle1)
         return torch.sigmoid(cur)
+
+
+class CANet(nn.Module):
+
+    def __init__(self, min_iter: int = 15, max_iter: int = 45, drop_rate: float = 0.5, live_threshold: float = 0.1):
+        super().__init__()
+        self.min_iter = min_iter
+        self.max_iter = max_iter
+        self.drop_rate = drop_rate
+        self.live_threshold = live_threshold
+        self.conv1 = nn.Conv2d(48, 48, 1, bias=False)
+        self.conv2 = nn.Conv2d(48, 16, 1, bias=False)
+        self.mask = nn.MaxPool2d(kernel_size=(3, 3), stride=1, padding=1, ceil_mode=False)
+        sobel = np.array([[-1, 0, +1],
+                          [-2, 0, +2],
+                          [-1, 0, +1]], dtype=np.float32)[np.newaxis, np.newaxis, ...] / 8
+        self.sobel = torch.from_numpy(np.tile(sobel, (16, 1, 1, 1)))
+
+    # def cuda(self, device):
+    #     super().cuda(device)
+    #     self.sobel = self.sobel.cuda(device)
+    #
+    # def cpu(self):
+    #     super().cpu()
+    #     self.sobel = self.sobel.cpu()
+    #
+    # def to(self, device):
+    #     super().to(device)
+    #     self.sobel = self.sobel.to(device)
+
+    def perception(self, cell: torch.Tensor) -> torch.Tensor:
+        grad_x = F.conv2d(cell, self.sobel, groups=cell.shape[1], padding=1)
+        grad_y = F.conv2d(cell, self.sobel.transpose(2, 3), groups=cell.shape[1], padding=1)
+        return torch.cat((cell, grad_x, grad_y), dim=1)
+
+    def get_update(self, perception: torch.Tensor) -> torch.Tensor:
+        N, C, H, W = perception.shape
+        cell = self.conv1(perception)
+        cell = F.relu(cell)
+        cell = self.conv2(cell)
+        if self.training:
+            drop_mask = torch.rand((N, 1, H, W)) > self.drop_rate
+            cell = cell * drop_mask.to(cell.device)
+        return cell
+
+    def get_life_mask(self, cell: torch.Tensor) -> torch.Tensor:
+        return self.mask(cell[:, :1, :, :]) > self.live_threshold
+
+    def forward(self, inp: torch.Tensor) -> torch.Tensor:
+        if self.training:
+            num_iter = torch.randint(self.min_iter, self.max_iter, (1,))
+        else:
+            num_iter = (self.min_iter + self.max_iter) // 2
+        N, C, H, W = inp.shape
+        cell = torch.zeros((N, 16, H, W)).to(inp.device)
+        cell[:, 1:C+1, :, :] = inp
+        cell[:, 0, :, :] = 1 - inp[:, 0, :, :]
+        self.sobel = self.sobel.to(inp.device)
+        for _ in range(num_iter):
+            pre_life_mask = self.get_life_mask(cell)
+            perception = self.perception(cell)
+            cur = self.get_update(perception)
+            cur = cur + cell
+            post_life_mask = self.get_life_mask(cur)
+            cell = cur * (pre_life_mask * post_life_mask)
+        out = cell[:, 1:C+1, :, :]
+        return out

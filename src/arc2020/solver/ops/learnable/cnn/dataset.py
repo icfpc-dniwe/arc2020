@@ -122,7 +122,8 @@ def aug(img: ImgMatrix,
 class TaskData(data.Dataset):
 
     def __init__(self, imgs: List[ImgMatrix], targets: List[ImgMatrix],
-                 sample: bool = False, num_sample: int = 3 * 10**4):
+                 sample: bool = False, num_sample: int = 3 * 10**4,
+                 train_diff: bool = True):
         super(TaskData, self).__init__()
         all_permutations = list(permutations(range(10)))
         self.noise_palette = set(range(10))
@@ -130,6 +131,7 @@ class TaskData(data.Dataset):
             self.noise_palette -= set(np.unique(cur_img).tolist())
         self.noise_palette = list(self.noise_palette)
         self.data = list(zip(imgs, targets))
+        self.train_diff = train_diff
         if sample:
             self.permutations = RandomPerm(all_permutations, num_sample)
         else:
@@ -152,8 +154,11 @@ class TaskData(data.Dataset):
         #           for inp, out, inp_shape, out_shape in sample]
         train_data = sample[0][0]
         train_labels = sample[0][1]
-        diff = train_labels != train_data
-        train_labels = diff * train_labels + (1 - diff) * 10
+        if self.train_diff:
+            diff = train_labels != train_data
+            train_labels = diff * train_labels + (1 - diff) * 10
+        else:
+            train_labels = train_labels.astype(np.int64)
         sample = [prep_data(*data, cur_perm) for data in sample]
         train_sample = sample[0]
         train_pair = (torch.from_numpy(train_sample[0]),
@@ -166,6 +171,24 @@ class TaskData(data.Dataset):
         # train_mask[:, 10:10+h, 10:10+w] = 1
         # return pred_sample, torch.from_numpy(sample[0][0]), torch.from_numpy(sample[0][1])
         return pred_sample[0][0], pred_sample[0][1], train_pair[0], train_pair[1]
+
+
+# class TaskSet(data.Dataset):
+#
+#     def __init__(self,
+#                  tasks: Sequence[Task],
+#                  num_train_pairs: int = 3,
+#                  num_test_pairs: int = 1,
+#                  permutate_colors: bool = True):
+#         self.permutate_colors = permutate_colors
+#         self.num_train_pairs = num_train_pairs
+#         self.num_test_pairs = num_test_pairs
+#
+#     def __len__(self) -> int:
+#         pass
+#
+#     def __getitem__(self, idx: int):
+#         pass
 
 
 class TaggedDataset(data.Dataset):
